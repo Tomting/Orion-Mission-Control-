@@ -323,6 +323,14 @@ Console.prototype.doEval = function() {
     } else {
       this.requestWithParams("/execute_query/", { query:this.tokens.line, format:'text' } );
     }
+  } else if (token == "UPDATE" ) {
+    this.tokens.consume();
+    token = this.tokens.nextToken();
+    if (token == undefined) {
+      this.generateSubcommandError("UPDATE");
+    } else {
+      this.requestWithParams("/execute_query/", { query:this.tokens.line, format:'text' } );
+    }    
   } else if (token == "NETWORK") {
     this.tokens.consume();
     token = this.tokens.nextToken();
@@ -425,7 +433,7 @@ Console.prototype.doEval = function() {
       this.error('HELP does not take any arguments');
     } else {
       this.vt100('Supported commands:\r\n' +
-       'CLEAR CONNECT SELECT INSERT NETWORK TABLE GOSSIPER CONFIG\r\n'+
+       'CLEAR CONNECT SELECT INSERT UPDATE NETWORK TABLE GOSSIPER CONFIG\r\n'+
        '\r\n');
     }
   } else if (token == "CONFIG") {
