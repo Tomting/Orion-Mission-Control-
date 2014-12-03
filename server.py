@@ -39,7 +39,7 @@ from orion.ThrfAlog.ttypes import iEreservedkeyword, iEcolumntype, iEstategossip
 #SERVER_PORT = 9011
 #SERVER_ADDRESS = 'mobile.tomting.com'
 #SERVER_PORT = 1974
-SERVER_ADDRESS = 'localhost'
+SERVER_ADDRESS = '127.0.0.1'
 SERVER_PORT = 9011
 SOCKET_TIMEOUT_MS = 5000
 
@@ -56,8 +56,10 @@ def generateRandom(length):
 
 class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 	cookie = Cookie.SimpleCookie()
-	host = SERVER_ADDRESS
-	port = SERVER_PORT
+	orion_host = SERVER_ADDRESS
+	orion_port = SERVER_PORT
+	server_host = '127.0.0.1'
+	server_port = 8000
 
 	def Session(self):
 		"""Session management
@@ -87,7 +89,7 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 
 	def _execute_thrift_command(self, args): 
 		try:
-			socket = TSocket.TSocket(self.host, self.port)
+			socket = TSocket.TSocket(self.orion_host, self.orion_port)
 			socket.setTimeout(SOCKET_TIMEOUT_MS);
 			transport = TTransport.TFramedTransport(socket)
 			protocol = TBinaryProtocol.TBinaryProtocol(transport)
@@ -107,7 +109,7 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 
 	def _execute_gossiper(self):
 		try:
-			socket = TSocket.TSocket(self.host, self.port)
+			socket = TSocket.TSocket(self.orion_host, self.orion_port)
 			socket.setTimeout(SOCKET_TIMEOUT_MS);
 			transport = TTransport.TFramedTransport(socket)
 			protocol = TBinaryProtocol.TBinaryProtocol(transport)
@@ -209,12 +211,12 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		if hasattr(so,'orion_host'):
 			print ("====== ORION HOST IS ",so.orion_host)
 			print ("====== ORION PORT IS ",so.orion_port)
-			self.host = so.orion_host
-			self.port = so.orion_port
+			self.orion_host = so.orion_host
+			self.orion_port = so.orion_port
 		else:
 			print ("====== NO SESSION FOUND!")
-			self.host = SERVER_ADDRESS
-			self.port = SERVER_PORT
+			self.orion_host = SERVER_ADDRESS
+			self.orion_port = SERVER_PORT
 
 		if (self.path == '/execute_query/'):
 			form = cgi.FieldStorage(
@@ -232,9 +234,9 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 
 			try:
 				# Make socket
-				print (self.host)
-				print (self.port)
-				socket = TSocket.TSocket(self.host, self.port)
+				print (self.orion_host)
+				print (self.orion_port)
+				socket = TSocket.TSocket(self.orion_host, self.orion_port)
 				socket.setTimeout(SOCKET_TIMEOUT_MS);
  
  				# Buffering is critical. Raw sockets are very slow
@@ -388,8 +390,8 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
  			form = self._get_form_data()
  			fmt = form['format'].value
  			data = {}
- 			data['wsserver'] = '127.0.0.1'
- 			data['wsport'] = 8001
+ 			data['wsserver'] = self.server_host
+ 			data['wsport'] = self.server_port + 1
  			data['orionserver'] = SERVER_ADDRESS
  			data['orionport'] = SERVER_PORT
 			self._send_response(200, "text/json", json.dumps(data)) 			
@@ -498,6 +500,20 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			self.wfile.write("\r\n")
 			self.wfile.write(ret)
 
+		elif ( self.path == '/config/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			out = PrettyTable(['DESCRIPTION','VALUE'])
+			out.align = "l"
+			out.padding_width = 1 # One space between column edges and contents (default)
+			out.add_row(["server host", self.server_host])
+			out.add_row(["server port", self.server_port])
+			out.add_row(["websocket port", self.server_port+1])
+			so = self.Session()
+			out.add_row(["session orion host", so.orion_host])
+			out.add_row(["session orion port", so.orion_port])
+			self._send_response(200, "text/plain", "\r\n"+out.get_string())
+
 		else:
 			super(RequestHandler, self).do_GET()
 
@@ -595,6 +611,8 @@ else:
 HandlerClass.protocol_version = Protocol
 httpd = ServerClass(server_address, HandlerClass)
 httpd.cookie_secret = "78A2JIGXSrehem2HqgpozJek2Ep3g0FTqBmnizsAFSM="
+httpd.server_host = server_address
+httpd.server_port = port
 
 # Initialize the websocket server 
 websocketserver = SimpleWebSocketServer('0.0.0.0', port+1, OrionStat)

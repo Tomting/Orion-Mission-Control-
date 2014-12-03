@@ -417,12 +417,12 @@ Console.prototype.doEval = function() {
       this.error('HELP does not take any arguments');
     } else {
       this.vt100('Supported commands:\r\n' +
-       'CLEAR CONNECT SELECT NETWORK TABLE GOSSIPER\r\n'+
+       'CLEAR CONNECT SELECT NETWORK TABLE GOSSIPER CONFIG\r\n'+
        '\r\n');
     }
-  } else if (token == "LET") {
+  } else if (token == "CONFIG") {
     this.tokens.consume();
-    this.doAssignment();
+    this.requestWithParams("/config/", { format:'text' } );
   } else if (token == "LIST") {
     this.tokens.consume();
     this.doList();

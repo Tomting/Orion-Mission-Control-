@@ -95,8 +95,8 @@
 			}
 
 			/* WEBSOCKET */ 
-			function doConnect() {
-				websocket = new WebSocket("ws://localhost:8001"); // TODO: port must be set by server
+			function doConnect(host, port) {
+				websocket = new WebSocket("ws://"+host+":"+port); // TODO: port must be set by server
 				websocket.onopen = function(evt) { onOpen(evt) };
 				websocket.onclose = function(evt) { onClose(evt) };
 				websocket.onmessage = function(evt) { onMessage(evt) };
@@ -120,6 +120,14 @@
 			function onError(evt) {
 				show_error("error "+evt.data);
 				websocket.close();
+			}
+
+			function dispatchMessage(json) {
+				if (websocket) {
+					websocket.send(JSON.stringify(json));
+				} else {
+					show_error("Sorry websocket not connected.");
+				}
 			}
 			/*********/
 
@@ -1059,12 +1067,10 @@
 
 				webix.ajax().post("/get_config/", { format:"json" }, { 
 					success:function(text, xml, xhr) {
-						console.log(text);
 						var json = webix.DataDriver.json.toObject(text);
 						$$('label_orion_address').setValue("ORION:"+json.orionserver+":"+json.orionport+":DEFAULT");
-
 						// start connection with the websocket server
-						doConnect();
+						doConnect(json.wsserver, json.wsport);
 					}, 
 					error:function(text, xml, hxr) {
 						show_error(text);
