@@ -27,11 +27,12 @@
 		<script src="js/d3/d3/d3.v3.min.js" type="text/javascript"></script>
 		<script src="js/d3/d3.js" type="text/javascript"></script>
 
-		<!-- console -->
+		<!-- console
 		<script src="js/console/console/vt100.js" type="text/javascript"></script>
 		<script src="js/console/console/console.js" type="text/javascript"></script>
 		<script src="js/console/console.js" type="text/javascript"></script>
 		<link rel="stylesheet" href="/js/console/console/styles.css" type="text/css">
+		-->
 		<style>
 			.svgchart {
 				font: 10px sans-serif;
@@ -168,9 +169,9 @@
 				rows:[{ 
 					view:"console", id:"console-container"
 				}]*/
-				rows:[{ 
-					view:"iframe", id:"frame-body", src:"console/demo.html"
-				}]
+				rows:[
+					{ view:"iframe", id:'frame-body-console1', batch:"console1", src:"console/demo.html"},
+				]
         	};
 
         	/* 
@@ -357,7 +358,7 @@
 					{ view:"multiview",
 						id:"network_multiview",
 						animate:{type:"flip", subtype:"vertical"},
-						cols:[
+						cells:[
 					{ view:"d3-chart",
 						id:"d3_network",
 						batch:"d3_network",
