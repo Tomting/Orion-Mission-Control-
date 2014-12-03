@@ -1,0 +1,1086 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+    	<title>ORION</title>
+    	<link rel="stylesheet" href="codebase/webix.css" type="text/css"> 
+    	<script src="codebase/webix_debug.js" type="text/javascript"></script>  
+    	<script src="js/find-in-json.js" type="text/javascript"></script>
+
+		<!-- You can get these files from https://github.com/webix-hub/components -->
+		<script type="text/javascript">
+			webix.require.disabled = true;
+		</script>
+
+		<!-- codemirror -->
+		<script src="js/codemirror/codemirror.js"></script>
+		<script src="js/codemirror/codemirror/lib/codemirror.js"></script>
+		<script src="js/codemirror/codemirror/mode/mysql/mysql.js"></script>
+		<link href="js/codemirror/codemirror/lib/codemirror.css" rel="stylesheet" type="text/css">
+		<link href="js/codemirror/codemirror/theme/neat.css" rel="stylesheet" type="text/css">
+
+		<!-- just gage -->
+		<script src="js/justgage/justgage/raphael.2.1.0.min.js" type="text/javascript" ></script>
+		<script src="js/justgage/justgage/justgage.1.0.1.js" type="text/javascript" ></script>
+		<script src="js/justgage/justgage.js" type="text/javascript" ></script>
+
+		<!-- d3 -->
+		<script src="js/d3/d3/d3.v3.min.js" type="text/javascript"></script>
+		<script src="js/d3/d3.js" type="text/javascript"></script>
+
+		<!-- console -->
+		<script src="js/console/console/vt100.js" type="text/javascript"></script>
+		<script src="js/console/console/console.js" type="text/javascript"></script>
+		<script src="js/console/console.js" type="text/javascript"></script>
+		<link rel="stylesheet" href="/js/console/console/styles.css" type="text/css">
+		<style>
+			.svgchart {
+				font: 10px sans-serif;
+				shape-rendering: crispEdges;
+				background: -moz-linear-gradient(269deg, rgba(153,218,255,1) 0%, rgba(0,128,128,1) 100%); /* ff3.6+ */
+				background: -webkit-gradient(linear, left top, left bottom, color-stop(0%, rgba(153,218,255,1)), color-stop(100%, rgba(0,128,128,1))); /* safari4+,chrome */
+				background: -webkit-linear-gradient(269deg, rgba(153,218,255,1) 0%, rgba(0,128,128,1) 100%); /* safari5.1+,chrome10+ */
+				background: -o-linear-gradient(269deg, rgba(153,218,255,1) 0%, rgba(0,128,128,1) 100%); /* opera 11.10+ */
+				background: -ms-linear-gradient(269deg, rgba(153,218,255,1) 0%, rgba(0,128,128,1) 100%); /* ie10+ */
+				background: linear-gradient(181deg, rgba(153,218,255,1) 0%, rgba(0,128,128,1) 100%); /* w3c */
+				filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#99DAFF', endColorstr='#008080',GradientType=0 ); /* ie6-9 */
+			}
+	.node {
+    cursor: pointer;
+  }
+
+  .overlay{
+      background-color:#EEE;
+  }
+   
+  .node circle {
+    fill: #fff;
+    stroke: steelblue;
+    stroke-width: 1.5px;
+  }
+   
+  .node text {
+    font-size:10px; 
+    font-family:sans-serif;
+  }
+   
+  .link {
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 1.5px;
+  }
+
+  .templink {
+    fill: none;
+    stroke: red;
+    stroke-width: 3px;
+  }
+
+  .ghostCircle.show{
+      display:block;
+  }
+
+  .ghostCircle, .activeDrag .ghostCircle{
+       display: none;
+  }
+		</style>		
+    </head>
+    <body>
+		<script>      
+			/* HELP */
+			function show_error(message){
+				webix.message({type:"error", text:message, expire:1000 });
+			}
+			function show_message(message){
+				webix.message({text:message, expire:1000 });
+			}
+
+			/* WEBSOCKET */ 
+			function doConnect() {
+				websocket = new WebSocket("ws://localhost:8001"); // TODO: port must be set by server
+				websocket.onopen = function(evt) { onOpen(evt) };
+				websocket.onclose = function(evt) { onClose(evt) };
+				websocket.onmessage = function(evt) { onMessage(evt) };
+				websocket.onerror = function(evt) { onError(evt) };
+			};
+			function onOpen(evt) {
+				console.log("connected\n");
+			}
+			function onClose(evt) {
+			    console.log("disconnected\n");
+				show_error("disconnected");
+			}
+			function onMessage(evt) {
+				console.log("response: " + evt.data + '\n');
+				var json = webix.DataDriver.json.toObject(evt.data);
+				if (json.msgtype == "top") {
+					$$("datatable_stats").clearAll();
+					$$("datatable_stats").parse(json.params);
+				}
+			}
+			function onError(evt) {
+				show_error("error "+evt.data);
+				websocket.close();
+			}
+			/*********/
+
+        	var menu = {
+				rows: [
+					{ type:"header", template:"Menu"},
+					{ view:"list", id:"sidemenu", width:230, select: true, scroll:false, layout:"y",
+						 data:[
+							{id:"cfg_console", title:"Console", src:"/js/img/terminal.png" },
+							{id:"cfg_sqleditor", title:"OSQL Editor", src:"/js/img/editor.png" },
+							{id:"cfg_nodestats", title:"Statistics", src:"/js/img/stats.png" },
+							{id:"cfg_network", title:"Network", src:"/js/img/network.png" },
+						 ],	
+						 on: {
+							onItemClick:function(id) {
+								$$("main").showBatch(id);
+								$$("header").setValue(this.getItem(id).title);
+								if (id == 'cfg_network') {
+									$$('d3_network').initialize();
+									//$$('d3_list').initialize();
+								}
+							}
+						},
+						template:function(obj){ //obj is a data record object
+							return '<div class="webix_strong"><img width="24" height="24" valign="middle" style="margin-right:10px;" src="'+obj.src+'"/>'+obj.title+'</div>'
+						}
+					}
+				]				
+        	};
+        	
+			/**
+        	 *	C O N S O L E  
+        	 **/
+
+        	var view_console = {
+				batch:"cfg_console",
+				/*
+				rows:[{ 
+					view:"console", id:"console-container"
+				}]*/
+				rows:[{ 
+					view:"iframe", id:"frame-body", src:"console/demo.html"
+				}]
+        	};
+
+        	/* 
+        	 * OSQL EDITOR
+        	 **/
+			function execute_query(){
+				var text = $$("sql_editor").getValue();
+				webix.ajax().post("/execute_query/", { query:text, format:"json" }, { success:function(text, xml, xhr) {
+					console.log(xhr);
+					var datatable = $$("sql_result");
+					console.log(text);
+					var json = webix.DataDriver.json.toObject(text);
+					datatable.clearAll();
+					if (json.config.columns.length > 0) {
+						datatable.parse(text);
+						datatable.refreshColumns(json.config.columns);
+						datatable.refresh();
+					} else {
+						webix.message({type:"error", text:"Data not found :(", expire:1000 });
+					}
+				}, 
+				error:function(text, xml, hxr) {
+					show_error(text);
+				}});  
+			}
+
+			function clear_query(){
+				$$("sql_editor").setValue("");
+				$$("sql_result").clearAll();
+			}
+
+			function not_yet(){
+				webix.message({type:"error", text:"Sorry! Not yet implemented...", expire:1000 });
+			}
+
+        	 var view_sqleditor = {
+        	 	batch:"cfg_sqleditor",
+        		id:"vview_sqleditor",
+        	 			rows:[
+        	 				{
+        	 					view:"codemirror-editor",
+        	 					id:"sql_editor",
+        	 					mode:"mysql",
+        	 					theme:"neat",
+        	 					value:"select from pting",
+        	 					height:100
+        	 				},
+			        	 	{ view:"toolbar", 
+			 					elements:[
+								  	{ view:"icon", icon:"play", click:execute_query, width:100 },
+								  	{ view:"icon", icon:"trash-o", click:clear_query, width:100 },
+								  	{ view:"icon", icon:"folder-open", click:not_yet, width:100 },
+								  	{ view:"icon", icon:"save", click:not_yet, width:100 },
+								  	{ view:"icon", icon:"share-square-o", click:not_yet, width:100 },
+								],
+			        	 	},
+			        	 	{ id:'sql_result', view:"datatable", type:"wide", resizeColumn:true, resizeRow:true, tooltip:true },
+        	 			],
+        	 }
+
+        	/* 
+        	 * N O D E   S T A T I S T I C S
+        	 **/
+        	var view_nodes = {
+				batch:"cfg_nodestats",
+					cols:[
+						{  view:"segmented", id:"filter_segment", options:[ "Memory", "CPU"], width:200 }, 
+					],
+				rows:[
+				{ 
+					view: 'toolbar',
+					elements:[
+					{
+						view:"justgage-chart",
+						value:25,
+						id:"gage1",
+						title:"Virtual Memory",
+						height:150
+					},
+					{
+						view:"justgage-chart",
+						value:25,
+						id:"gage2",
+						title:"Swap Memory",
+						height:150
+					},
+					{
+						view:"justgage-chart",
+						value:25,
+						id:"gage3",
+						title:"Total Memory",
+						height:150
+					},
+					]
+			    },
+			        	 	{ view:"toolbar", 
+			 					elements:[
+								  	{ view:"label", label:"Tablets" },
+								  	{ view:"segmented", id:"filter_segment", options:[ "Memory", "CPU"], width:200 },
+								],
+			        	 	},
+
+					{
+						view:"datatable",
+						id:"datatable_stats",
+						type:"json",
+						columns:[
+							{ id:"NAME", header:"NAME", width:500 },
+							{ id:"TOTAL", header:"TOTAL ms" },
+							{ id:"LOAD", header:"LOAD %" },
+							{ id:"READ", header:"READ ms" },
+							{ id:"WRITE", header:"WRITE ms" },
+						]
+					}
+				]
+        	};
+
+			/**
+			 * N E T W O R K 
+			 **/
+			var view_dialog_add_node = {
+				rows: [
+					{ view:"form", 
+					  id:"view_dialog_add_node",
+					  width:400,
+					  elements:[
+					  	{ view:"text", label:"Host" },
+					  	{ view:"text", label:"Port" },
+					  	{ margin:5, cols:[
+					  		{ view:"button", value:"Add" , type:"form" },
+					  		{ view:"button", value:"Cancel", click:("$$('win_add_node').close();") }
+					  		]}
+					  ]
+					}				
+				]				
+			};
+
+			function add_node() {
+				webix.ui({ view:"window", id:"win_add_node", width:640, height:480, position:"center", head:"Add Orion Node", body:view_dialog_add_node, modal:true }).show();
+			}
+
+			function zoom_in() {
+				alert("here");
+
+				var svg = d3.select("svg");
+				var linearScale = d3.scale.linear()
+					.domain([0,10000])
+					.range([0,100]);
+
+				var viewCenter = [];
+
+				var zoom = d3.behavior.zoom();
+				viewCenter[0] = (-1)*zoom.translate()[0] + (0.5) * (  width/zoom.scale() );
+				viewCenter[1] = (-1)*zoom.translate()[1] + (0.5) * ( height/zoom.scale() );
+
+				console.log(svg);
+				console.log(viewCenter);
+
+			}
+
+			function zoom_out() {
+			}
+
+        	var view_network = {
+        		batch:"cfg_network",
+				rows:[
+					{view:"toolbar", elements:[
+						{view:"icon", icon:"refresh", click:not_yet, width:100 },
+						{view:"icon", icon:"plus", click:add_node, width:100 },
+						{view:"icon", icon:"compress", click:zoom_out, width:100 },
+						{view:"icon", icon:"expand", click:zoom_in, width:100 },
+						{view:"icon", icon:"search", click:not_yet, width:100 },
+						{view:"spacer"},
+						{view:"segmented", id:"filter_graph", options:[ "Network Ring", "Cloud Graph"], width:300, on:{ 
+							onChange:function(newv, oldv) {
+								if (newv == "Network Ring") {
+									$$("network_multiview").showBatch("d3_network");
+								} else {
+									$$("network_multiview").showBatch("d3_list");
+								}
+							}
+						} },
+					]},
+					{ view:"multiview",
+						id:"network_multiview",
+						animate:{type:"flip", subtype:"vertical"},
+						cols:[
+					{ view:"d3-chart",
+						id:"d3_network",
+						batch:"d3_network",
+						resize:true,
+						ready:function(){
+							/* Circle Layout Formula 
+							(x',y')=(cx+r*cos(α),cy+r*sin(α))
+							Where cx and cy are the center of the circle, r is the radius, and α is the angle of the point, in radians, relative to the center of the circle. */
+
+							var width = this.$width;
+							var height = this.$height;
+							var cx = width / 2;
+							var cy = height / 2;
+							var r = height / 2;
+							var r_external = r + 50;
+							var numElements = 50; 
+							var posDegrees = 360 / numElements;
+							var view_cx = 0; 
+							var view_cy = 0;
+
+							var svg = d3.select(this.$view).append("svg").attr("width", this.$width).attr("height", this.$height)
+								.attr("class","svgchart")
+								.append("g")
+								.call(d3.behavior.zoom().scaleExtent([0.1, 4]).on("zoom", zoomHandler))
+								.append("g");
+
+							var mainCircle = svg.append("svg:circle").attr("cx", cx).attr("cy", cy).attr("r", r).style("fill","transparent").style("stroke","black");
+
+							svg.append("text")
+								.attr("font-family","sans-serif")
+								.attr("font-size","20px")
+								.attr("fill","black")
+								.attr("x",mainCircle.attr("cx"))
+								.attr("y",mainCircle.attr("cy"))
+								.attr("text-anchor", "middle")
+								.text("DEFAULTDC")
+
+							var strIP = "192.168.0.";
+							var indexDegrees = posDegrees;
+							for (i=0; i<numElements; i++) {
+								var p0 = cx+r*Math.cos(indexDegrees * 0.0174532925);
+								var p1 = cy+r*Math.sin(indexDegrees * 0.0174532925);
+								var p2 = cx+r_external*Math.cos(indexDegrees * 0.0174532925);
+								var p3 = cy+r_external*Math.sin(indexDegrees * 0.0174532925);
+
+								drawPoint(svg, p0, p1);
+								drawText(svg, p2, p3, indexDegrees, strIP+i);
+								indexDegrees += posDegrees;
+							}
+
+							function transform(p) {
+								var center = [cx, cy];
+								var k = height / p[2];
+								return "translate(" + (center[0] - p[0] * k) + "," + (center[1] - p[1] * k) + ")scale(" + k + ")";
+							}
+
+							function drawPoint(svg, p0, p1) {
+								svg.append("svg:circle")
+									.attr("cx", p0)
+									.attr("cy", p1)
+									.attr("r", 8)
+									.attr("class", "orionnode")
+									.style("fill", "green")
+									.on("mouseover", function(d) {
+										d3.select(this).style("fill","blue");
+									}).on("mouseout", function(d){
+										d3.select(this).style("fill","green");
+									}).on("click", function(d) {
+										var circle = d3.select(this);
+										var start = [ cx, cy, 60];
+										var end = [ parseFloat(circle.attr("cx")), parseFloat(circle.attr("cy")), 120];
+										console.log(start);
+										console.log(end);
+										var interpolator = d3.interpolateZoom(start, end);
+										svg.attr("transform", transform(start)).transition().delay(250).duration(interpolator.duration * 2).attrTween("transform", function() { return function(t) { return transform(interpolator(t)); }; });
+								});							
+							}
+
+							function drawText(svg, p0, p1, degrees, text) {
+								svg.append("text")
+									.attr("class","orionnodetext")
+									.attr("font-family","sans-serif")
+									.attr("font-size","10px")
+									.attr("fill","black")
+									.attr("text-anchor", "middle")
+									.attr("transform", "translate("+p0+","+p1+") rotate("+degrees+")").text(text);						
+							}
+
+							// function for handling zoom event
+							function zoomHandler() {
+								//var viewCenter = [];
+								//viewCenter[0] = (-1)*d3.event.translate[0] + (0.5) * ( width/d3.event.scale );
+								//viewCenter[1] = (-1)*d3.event.translate[1] + (0.5) * ( height/d3.event.scale );		
+								svg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+							}							
+						}
+						},
+						{ view:"d3-chart",
+							id:"d3_list",
+							batch:"d3_list",
+							resize:true,
+							url:"/js/d3/data/flare.json",
+							ready:function(){
+
+    // Calculate total nodes, max label length
+    var totalNodes = 0;
+    var maxLabelLength = 0;
+    // variables for drag/drop
+    var selectedNode = null;
+    var draggingNode = null;
+    // panning variables
+    var panSpeed = 200;
+    var panBoundary = 20; // Within 20px from edges will pan when dragging.
+    // Misc. variables
+    var i = 0;
+    var duration = 750;
+    var root;
+
+    // size of the diagram
+    var viewerWidth = this.$width;
+    var viewerHeight = this.$height;
+
+    var tree = d3.layout.tree()
+        .size([viewerHeight, viewerWidth]);
+
+    // define a d3 diagonal projection for use by the node paths later on.
+    var diagonal = d3.svg.diagonal()
+        .projection(function(d) {
+            return [d.y, d.x];
+        });
+
+    // A recursive helper function for performing some setup by walking through all nodes
+
+    function visit(parent, visitFn, childrenFn) {
+        if (!parent) return;
+
+        visitFn(parent);
+
+        var children = childrenFn(parent);
+        if (children) {
+            var count = children.length;
+            for (var i = 0; i < count; i++) {
+                visit(children[i], visitFn, childrenFn);
+            }
+        }
+    }
+
+    // Call visit function to establish maxLabelLength
+    visit(this.data, function(d) {
+        totalNodes++;
+        maxLabelLength = Math.max(d.name.length, maxLabelLength);
+
+    }, function(d) {
+        return d.children && d.children.length > 0 ? d.children : null;
+    });
+
+
+    // sort the tree according to the node names
+
+    function sortTree() {
+        tree.sort(function(a, b) {
+            return b.name.toLowerCase() < a.name.toLowerCase() ? 1 : -1;
+        });
+    }
+    // Sort the tree initially incase the JSON isn't in a sorted order.
+    sortTree();
+
+    // TODO: Pan function, can be better implemented.
+
+    function pan(domNode, direction) {
+        var speed = panSpeed;
+        if (panTimer) {
+            clearTimeout(panTimer);
+            translateCoords = d3.transform(svgGroup.attr("transform"));
+            if (direction == 'left' || direction == 'right') {
+                translateX = direction == 'left' ? translateCoords.translate[0] + speed : translateCoords.translate[0] - speed;
+                translateY = translateCoords.translate[1];
+            } else if (direction == 'up' || direction == 'down') {
+                translateX = translateCoords.translate[0];
+                translateY = direction == 'up' ? translateCoords.translate[1] + speed : translateCoords.translate[1] - speed;
+            }
+            scaleX = translateCoords.scale[0];
+            scaleY = translateCoords.scale[1];
+            scale = zoomListener.scale();
+            svgGroup.transition().attr("transform", "translate(" + translateX + "," + translateY + ")scale(" + scale + ")");
+            d3.select(domNode).select('g.node').attr("transform", "translate(" + translateX + "," + translateY + ")");
+            zoomListener.scale(zoomListener.scale());
+            zoomListener.translate([translateX, translateY]);
+            panTimer = setTimeout(function() {
+                pan(domNode, speed, direction);
+            }, 50);
+        }
+    }
+
+    // Define the zoom function for the zoomable tree
+
+    function zoom() {
+        svgGroup.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+    }
+
+
+    // define the zoomListener which calls the zoom function on the "zoom" event constrained within the scaleExtents
+    var zoomListener = d3.behavior.zoom().scaleExtent([0.1, 3]).on("zoom", zoom);
+
+    function initiateDrag(d, domNode) {
+        draggingNode = d;
+        d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
+        d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
+        d3.select(domNode).attr('class', 'node activeDrag');
+
+        svgGroup.selectAll("g.node").sort(function(a, b) { // select the parent and sort the path's
+            if (a.id != draggingNode.id) return 1; // a is not the hovered element, send "a" to the back
+            else return -1; // a is the hovered element, bring "a" to the front
+        });
+        // if nodes has children, remove the links and nodes
+        if (nodes.length > 1) {
+            // remove link paths
+            links = tree.links(nodes);
+            nodePaths = svgGroup.selectAll("path.link")
+                .data(links, function(d) {
+                    return d.target.id;
+                }).remove();
+            // remove child nodes
+            nodesExit = svgGroup.selectAll("g.node")
+                .data(nodes, function(d) {
+                    return d.id;
+                }).filter(function(d, i) {
+                    if (d.id == draggingNode.id) {
+                        return false;
+                    }
+                    return true;
+                }).remove();
+        }
+
+        // remove parent link
+        parentLink = tree.links(tree.nodes(draggingNode.parent));
+        svgGroup.selectAll('path.link').filter(function(d, i) {
+            if (d.target.id == draggingNode.id) {
+                return true;
+            }
+            return false;
+        }).remove();
+
+        dragStarted = null;
+    }
+
+    // define the baseSvg, attaching a class for styling and the zoomListener
+    var baseSvg = d3.select(this.$view).append("svg")
+    	.attr("class","svgchart")
+        .attr("width", viewerWidth)
+        .attr("height", viewerHeight)
+        .attr("class", "overlay")
+        .call(zoomListener);
+
+
+    // Define the drag listeners for drag/drop behaviour of nodes.
+    dragListener = d3.behavior.drag()
+        .on("dragstart", function(d) {
+            if (d == root) {
+                return;
+            }
+            dragStarted = true;
+            nodes = tree.nodes(d);
+            d3.event.sourceEvent.stopPropagation();
+            // it's important that we suppress the mouseover event on the node being dragged. Otherwise it will absorb the mouseover event and the underlying node will not detect it d3.select(this).attr('pointer-events', 'none');
+        })
+        .on("drag", function(d) {
+            if (d == root) {
+                return;
+            }
+            if (dragStarted) {
+                domNode = this;
+                initiateDrag(d, domNode);
+            }
+
+            // get coords of mouseEvent relative to svg container to allow for panning
+            relCoords = d3.mouse($('svg').get(0));
+            if (relCoords[0] < panBoundary) {
+                panTimer = true;
+                pan(this, 'left');
+            } else if (relCoords[0] > ($('svg').width() - panBoundary)) {
+
+                panTimer = true;
+                pan(this, 'right');
+            } else if (relCoords[1] < panBoundary) {
+                panTimer = true;
+                pan(this, 'up');
+            } else if (relCoords[1] > ($('svg').height() - panBoundary)) {
+                panTimer = true;
+                pan(this, 'down');
+            } else {
+                try {
+                    clearTimeout(panTimer);
+                } catch (e) {
+
+                }
+            }
+
+            d.x0 += d3.event.dy;
+            d.y0 += d3.event.dx;
+            var node = d3.select(this);
+            node.attr("transform", "translate(" + d.y0 + "," + d.x0 + ")");
+            updateTempConnector();
+        }).on("dragend", function(d) {
+            if (d == root) {
+                return;
+            }
+            domNode = this;
+            if (selectedNode) {
+                // now remove the element from the parent, and insert it into the new elements children
+                var index = draggingNode.parent.children.indexOf(draggingNode);
+                if (index > -1) {
+                    draggingNode.parent.children.splice(index, 1);
+                }
+                if (typeof selectedNode.children !== 'undefined' || typeof selectedNode._children !== 'undefined') {
+                    if (typeof selectedNode.children !== 'undefined') {
+                        selectedNode.children.push(draggingNode);
+                    } else {
+                        selectedNode._children.push(draggingNode);
+                    }
+                } else {
+                    selectedNode.children = [];
+                    selectedNode.children.push(draggingNode);
+                }
+                // Make sure that the node being added to is expanded so user can see added node is correctly moved
+                expand(selectedNode);
+                sortTree();
+                endDrag();
+            } else {
+                endDrag();
+            }
+        });
+
+    function endDrag() {
+        selectedNode = null;
+        d3.selectAll('.ghostCircle').attr('class', 'ghostCircle');
+        d3.select(domNode).attr('class', 'node');
+        // now restore the mouseover event or we won't be able to drag a 2nd time
+        d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
+        updateTempConnector();
+        if (draggingNode !== null) {
+            update(root);
+            centerNode(draggingNode);
+            draggingNode = null;
+        }
+    }
+
+    // Helper functions for collapsing and expanding nodes.
+
+    function collapse(d) {
+        if (d.children) {
+            d._children = d.children;
+            d._children.forEach(collapse);
+            d.children = null;
+        }
+    }
+
+    function expand(d) {
+        if (d._children) {
+            d.children = d._children;
+            d.children.forEach(expand);
+            d._children = null;
+        }
+    }
+
+    var overCircle = function(d) {
+        selectedNode = d;
+        updateTempConnector();
+    };
+    var outCircle = function(d) {
+        selectedNode = null;
+        updateTempConnector();
+    };
+
+    // Function to update the temporary connector indicating dragging affiliation
+    var updateTempConnector = function() {
+        var data = [];
+        if (draggingNode !== null && selectedNode !== null) {
+            // have to flip the source coordinates since we did this for the existing connectors on the original tree
+            data = [{
+                source: {
+                    x: selectedNode.y0,
+                    y: selectedNode.x0
+                },
+                target: {
+                    x: draggingNode.y0,
+                    y: draggingNode.x0
+                }
+            }];
+        }
+        var link = svgGroup.selectAll(".templink").data(data);
+
+        link.enter().append("path")
+            .attr("class", "templink")
+            .attr("d", d3.svg.diagonal())
+            .attr('pointer-events', 'none');
+
+        link.attr("d", d3.svg.diagonal());
+
+        link.exit().remove();
+    };
+
+    // Function to center node when clicked/dropped so node doesn't get lost when collapsing/moving with large amount of children.
+
+    function centerNode(source) {
+        scale = zoomListener.scale();
+        x = -source.y0;
+        y = -source.x0;
+        x = x * scale + viewerWidth / 2;
+        y = y * scale + viewerHeight / 2;
+        d3.select('g').transition()
+            .duration(duration)
+            .attr("transform", "translate(" + x + "," + y + ")scale(" + scale + ")");
+        zoomListener.scale(scale);
+        zoomListener.translate([x, y]);
+    }
+
+    // Toggle children function
+
+    function toggleChildren(d) {
+        if (d.children) {
+            d._children = d.children;
+            d.children = null;
+        } else if (d._children) {
+            d.children = d._children;
+            d._children = null;
+        }
+        return d;
+    }
+
+    // Toggle children on click.
+
+    function click(d) {
+        if (d3.event.defaultPrevented) return; // click suppressed
+        d = toggleChildren(d);
+        update(d);
+        centerNode(d);
+    }
+
+    function update(source) {
+        // Compute the new height, function counts total children of root node and sets tree height accordingly.
+        // This prevents the layout looking squashed when new nodes are made visible or looking sparse when nodes are removed
+        // This makes the layout more consistent.
+        var levelWidth = [1];
+        var childCount = function(level, n) {
+
+            if (n.children && n.children.length > 0) {
+                if (levelWidth.length <= level + 1) levelWidth.push(0);
+
+                levelWidth[level + 1] += n.children.length;
+                n.children.forEach(function(d) {
+                    childCount(level + 1, d);
+                });
+            }
+        };
+        childCount(0, root);
+        var newHeight = d3.max(levelWidth) * 25; // 25 pixels per line  
+        tree = tree.size([newHeight, viewerWidth]);
+
+        // Compute the new tree layout.
+        var nodes = tree.nodes(root).reverse(),
+            links = tree.links(nodes);
+
+        // Set widths between levels based on maxLabelLength.
+        nodes.forEach(function(d) {
+            d.y = (d.depth * (maxLabelLength * 10)); //maxLabelLength * 10px
+            // alternatively to keep a fixed scale one can set a fixed depth per level
+            // Normalize for fixed-depth by commenting out below line
+            // d.y = (d.depth * 500); //500px per level.
+        });
+
+        // Update the nodes…
+        node = svgGroup.selectAll("g.node")
+            .data(nodes, function(d) {
+                return d.id || (d.id = ++i);
+            });
+
+        // Enter any new nodes at the parent's previous position.
+        var nodeEnter = node.enter().append("g")
+            .call(dragListener)
+            .attr("class", "node")
+            .attr("transform", function(d) {
+                return "translate(" + source.y0 + "," + source.x0 + ")";
+            })
+            .on('click', click);
+
+        nodeEnter.append("circle")
+            .attr('class', 'nodeCircle')
+            .attr("r", 0)
+            .style("fill", function(d) {
+                return d._children ? "lightsteelblue" : "#fff";
+            });
+
+        nodeEnter.append("text")
+            .attr("x", function(d) {
+                return d.children || d._children ? -10 : 10;
+            })
+            .attr("dy", ".35em")
+            .attr('class', 'nodeText')
+            .attr("text-anchor", function(d) {
+                return d.children || d._children ? "end" : "start";
+            })
+            .text(function(d) {
+                return d.name;
+            })
+            .style("fill-opacity", 0);
+
+        // phantom node to give us mouseover in a radius around it
+        nodeEnter.append("circle")
+            .attr('class', 'ghostCircle')
+            .attr("r", 30)
+            .attr("opacity", 0.2) // change this to zero to hide the target area
+        .style("fill", "red")
+            .attr('pointer-events', 'mouseover')
+            .on("mouseover", function(node) {
+                overCircle(node);
+            })
+            .on("mouseout", function(node) {
+                outCircle(node);
+            });
+
+        // Update the text to reflect whether node has children or not.
+        node.select('text')
+            .attr("x", function(d) {
+                return d.children || d._children ? -10 : 10;
+            })
+            .attr("text-anchor", function(d) {
+                return d.children || d._children ? "end" : "start";
+            })
+            .text(function(d) {
+                return d.name;
+            });
+
+        // Change the circle fill depending on whether it has children and is collapsed
+        node.select("circle.nodeCircle")
+            .attr("r", 4.5)
+            .style("fill", function(d) {
+                return d._children ? "lightsteelblue" : "#fff";
+            });
+
+        // Transition nodes to their new position.
+        var nodeUpdate = node.transition()
+            .duration(duration)
+            .attr("transform", function(d) {
+                return "translate(" + d.y + "," + d.x + ")";
+            });
+
+        // Fade the text in
+        nodeUpdate.select("text")
+            .style("fill-opacity", 1);
+
+        // Transition exiting nodes to the parent's new position.
+        var nodeExit = node.exit().transition()
+            .duration(duration)
+            .attr("transform", function(d) {
+                return "translate(" + source.y + "," + source.x + ")";
+            })
+            .remove();
+
+        nodeExit.select("circle")
+            .attr("r", 0);
+
+        nodeExit.select("text")
+            .style("fill-opacity", 0);
+
+        // Update the links…
+        var link = svgGroup.selectAll("path.link")
+            .data(links, function(d) {
+                return d.target.id;
+            });
+
+        // Enter any new links at the parent's previous position.
+        link.enter().insert("path", "g")
+            .attr("class", "link")
+            .attr("d", function(d) {
+                var o = {
+                    x: source.x0,
+                    y: source.y0
+                };
+                return diagonal({
+                    source: o,
+                    target: o
+                });
+            });
+
+        // Transition links to their new position.
+        link.transition()
+            .duration(duration)
+            .attr("d", diagonal);
+
+        // Transition exiting nodes to the parent's new position.
+        link.exit().transition()
+            .duration(duration)
+            .attr("d", function(d) {
+                var o = {
+                    x: source.x,
+                    y: source.y
+                };
+                return diagonal({
+                    source: o,
+                    target: o
+                });
+            })
+            .remove();
+
+        // Stash the old positions for transition.
+        nodes.forEach(function(d) {
+            d.x0 = d.x;
+            d.y0 = d.y;
+        });
+    }
+
+    // Append a group which holds all nodes and which the zoom Listener can act upon.
+    var svgGroup = baseSvg.append("g");
+
+    // Define the root
+    root = this.data;
+    root.x0 = viewerHeight / 2;
+    root.y0 = 0;
+
+    // Layout the tree initially and center on the root node.
+    update(root);
+    centerNode(root);
+							}
+						}
+						]
+					}
+				]
+			}
+
+
+			/**
+			 * M A I N 
+			 **/
+        	var views = {
+				id:"main",  visibleBatch:"cfg_console", rows: [
+					{
+						view: "toolbar",
+						height: 34,
+						elements:[
+							{view:"label", id:"header", label:"Console"},
+						]
+					},
+					view_console,
+					view_sqleditor,
+					view_nodes,
+					view_network,
+				]
+        	};
+
+        	// WINDOW - Change Server
+        	var window_change_server = {
+        		view:"window",
+        		id:"window_change_server",
+        		head:"Change Server",
+        		position:"center",
+        		modal:true,
+        		body:{view:"button", label:"Close", width:70, click:("$$('window_change_server').hide();")}, 
+        	};
+
+        	function form_change_server() {
+        		$$("window_change_server").show();        	}
+
+			var popup_prefs = {
+				view:"popup", id:"popup_prefs",
+				head:false,
+				body:{
+					view:"list", scroll:false, 
+					yCount:4, select:true, borderless:true,
+					template:"#lang#",
+					data:[
+						{id:1, lang:"Change Server..." },
+						{id:2, lang:"Config 2" },
+						{id:3, lang:"Config 3"},
+						{id:4, lang:"Config 4"}
+					],
+					on:{
+						"onAfterSelect":function(){
+							$$("popup_prefs").hide();
+						},
+						"onItemClick":function(id){
+							$$("popup_prefs").hide();
+							form_change_server();
+						}
+					}
+				}
+			};
+
+			var ui = {
+				rows: [
+					{view:"toolbar", height:50, elements:[
+						{view:"label", label:"<div style = 'font-size:18px; margin-right:5px; color:#fff;'>ORION Mission Control</div>" },
+						{view:"label", id:"label_orion_address", label:"<div style = 'font-size:18px; margin-right:5px; color:#fff;'>ORION:LOCALHOST:9011</div>" },
+						{view:"icon", icon:"user"},
+						{view:"icon", icon:"cog", popup:"popup_prefs"}
+					]},
+					{ type: "space", cols:[ menu, views ] }
+				]
+			};
+        
+			webix.ready(function(){
+				webix.ui(ui);
+				webix.ui(popup_prefs);
+				webix.ui(window_change_server);
+				$$("sidemenu").select("cfg_sqleditor");
+				$$("sidemenu").callEvent("onItemClick", ["cfg_sqleditor"]);
+
+				webix.ajax().post("/get_config/", { format:"json" }, { 
+					success:function(text, xml, xhr) {
+						console.log(text);
+						var json = webix.DataDriver.json.toObject(text);
+						$$('label_orion_address').setValue("ORION:"+json.orionserver+":"+json.orionport+":DEFAULT");
+
+						// start connection with the websocket server
+						doConnect();
+					}, 
+					error:function(text, xml, hxr) {
+						show_error(text);
+				}});  
+
+				// TODO: this is not more needed if websocket works...
+				/*
+				setInterval(function(){
+					var value = Math.floor(Math.random()*100)+1;
+					$$('gage1').setValue(value);
+					$$('gage2').setValue(100-value);
+					$$('gage3').setValue(100-value-10);
+				}, 2000);
+				*/
+			});
+
+        </script>
+    </body>
+</html>
