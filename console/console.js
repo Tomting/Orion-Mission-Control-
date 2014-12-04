@@ -439,9 +439,14 @@ Console.prototype.doEval = function() {
   } else if (token == "CONFIG") {
     this.tokens.consume();
     this.requestWithParams("/config/", { format:'text' } );
-  } else if (token == "LIST") {
+  } else if (token == "NAMESPACE") {
     this.tokens.consume();
-    this.doList();
+    var token = this.tokens.nextToken()
+    if (token == undefined) {
+        this.generateSubcommandError("NAMESPACE");
+        return;      
+    }
+    this.requestWithParams("/change_namespace/", { namespace:token, format:'text' } );
   } else if (token == "NEW") {
     this.tokens.consume();
     if (this.tokens.nextToken() != undefined) {
@@ -551,127 +556,6 @@ Console.prototype.doAssignment = function() {
     } else {
       this.vars['var_' + id + arr] = value;
     }
-  }
-};
-
-Console.prototype.doList = function() {
-  var start        = undefined;
-  var stop         = undefined;
-  var token        = this.tokens.nextToken();
-  if (token) {
-    if (token != '-' && !token.match(/[0-9]+/)) {
-      return this.error('LIST can optional take a start and stop line number');
-    }
-    if (token != '-') {
-      start        = parseInt(token);
-      token        = this.tokens.nextToken();
-    }
-    if (!token) {
-      stop         = start;
-    } else {
-      if (token != '-') {
-        return this.error('Dash expected');
-      }
-      token        = this.tokens.nextToken();
-      if (token) {
-        if (!token.match(/[0-9]+/)) {
-          return this.error(
-            'LIST can optionally take a start and stop line number');
-        }
-        stop       = parseInt(token);
-        if (start && stop < start) {
-          return this.error('Start line number has to come before stop');
-        }
-      }
-      if (this.tokens.peekToken()) {
-        return this.error('Unexpected trailing arguments');
-      }
-    }
-  }
-
-  var listed       = false;
-  for (var i = 0; i < this.program.length; i++) {
-    var line       = this.program[i];
-    var lineNumber = line.lineNumber();
-    if (start != undefined && start > lineNumber) {
-      continue;
-    }
-    if (stop != undefined && stop < lineNumber) {
-      break;
-    }
-
-    listed         = true;
-    this.vt100('' + line.lineNumber() + ' ');
-    line.tokens().reset();
-    var space      = true;
-    var id         = false;
-    for (var token; (token = line.tokens().nextToken()) != null; ) {
-      switch (token) {
-        case '=':
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-        case '\\':
-        case '^':
-        this.vt100((space ? '' : ' ') + token + ' ');
-        space    = true;
-        id       = false;
-        break;
-        case '(':
-          case ')':
-case '$':
-case '%':
-case '#':
-this.vt100(token);
-space    = false;
-id       = false;
-break;
-case ',':
-case ';':
-case ':':
-this.vt100(token + ' ');
-space    = true;
-id       = false;
-break;
-case '?':
-token    = 'PRINT';
-          // fall thru
-          default:
-          this.printUnicode((id ? ' ' : '') + token);
-          space    = false;
-          id       = true;
-          break;
-        }
-      }
-      this.vt100('\r\n');
-    }
-    if (!listed) {
-      this.ok();
-    }
-  };
-
-  Console.prototype.doPrint = function() {
-    var tokens    = this.tokens;
-    var last      = undefined;
-    for (var token; (token = tokens.peekToken()); ) {
-      last        = token;
-      if (token == ',') {
-        this.vt100('\t');
-        tokens.consume();
-      } else if (token == ';') {
-      // Do nothing
-      tokens.consume();
-    } else {
-      var value = this.expr();
-      if (value == undefined) {
-        return;
-      }
-      this.printUnicode(value.toString());
-    }
-  }
-  if (last != ';') {
-    this.vt100('\r\n');
   }
 };
 

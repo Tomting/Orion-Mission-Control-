@@ -15,6 +15,8 @@ import datetime
 import os
 import Cookie
 
+from BaseHTTPServer import HTTPServer
+from SocketServer import ThreadingMixIn
 from BaseHTTPServer import BaseHTTPRequestHandler
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from CGIHTTPServer import CGIHTTPRequestHandler
@@ -35,10 +37,6 @@ from thrift.protocol import TBinaryProtocol
 from orion.ThrfAlog import ThrfOrn_
 from orion.ThrfAlog.ttypes import iEreservedkeyword, iEcolumntype, iEstategossipnode
 
-#SERVER_ADDRESS = '192.168.0.104'
-#SERVER_PORT = 9011
-#SERVER_ADDRESS = 'mobile.tomting.com'
-#SERVER_PORT = 1974
 SERVER_ADDRESS = '127.0.0.1'
 SERVER_PORT = 9011
 SOCKET_TIMEOUT_MS = 5000
@@ -53,6 +51,9 @@ class SessionElement(object):
 def generateRandom(length):
     """Return a random string of specified length (used for session id's)"""
     return ''.join([random.choice(chars) for i in range(length)])
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle requests in a separate thread."""
 
 class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 	cookie = Cookie.SimpleCookie()
@@ -70,9 +71,11 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		8-letters value sent back to the client as the value for a cookie
 		called sessionId"""
 		if self.cookie.has_key("sessionId"):
+			print ("*************************************** FOUND SESSIONID", self.cookie["sessionId"].value)
 			sessionId=self.cookie["sessionId"].value
 		else:
 			sessionId=generateRandom(8)
+			print ("*************************************** NOT FOUND SESSIONID NEW ",sessionId)
 			self.cookie["sessionId"]=sessionId
 		try:
 			sessionObject = sessionDict[sessionId]
@@ -80,6 +83,7 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			sessionObject = SessionElement()
 			sessionObject.orion_host = SERVER_ADDRESS
 			sessionObject.orion_port = SERVER_PORT
+			sessionObject.orion_ns = "DEFAULT"
 			sessionDict[sessionId] = sessionObject
 		return sessionObject
 
@@ -168,24 +172,19 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		args.iVtimestamp = 0
 		return args		
 
-	def _handle_data(self):
-		pass
-		'''
-		if self.get_secure_cookie('user') is None:
-			print "********************************** COOKIE NOT FOUND"
-			self.set_secure_cookie('user', "%d" % random.randint(0,10000000))
+	'''
+	def _sessionid_headers(self):
+		if self.headers.has_key('SESSIONID'):
+			print self.headers.getheader("SESSIONID")
 		else:
-			print self.get_secure_cookie('user')
-		'''
+			print "NO SESSIONID FOUND"
+			print self.headers
+			self.send_header("SESSIONID","STOCAZZO")
 
-	def _serve_file(self):
-		path = self.translate_path(self.path)
-		try:
-			f = open(path, 'rb')
-		except IOError:
-			raise
-		else:
-			return SimpleHTTPRequestHandler.do_GET(self)
+	def end_headers(self):
+		self._sessionid_headers()
+		SimpleHTTPRequestHandler.end_headers(self)
+	'''
 
 	def do_GET(self):
 		'''
@@ -205,16 +204,11 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		return super(RequestHandler, self).do_GET()
 
 	def do_POST(self):
-		self._handle_data()
-
 		so = self.Session()
 		if hasattr(so,'orion_host'):
-			print ("====== ORION HOST IS ",so.orion_host)
-			print ("====== ORION PORT IS ",so.orion_port)
 			self.orion_host = so.orion_host
 			self.orion_port = so.orion_port
 		else:
-			print ("====== NO SESSION FOUND!")
 			self.orion_host = SERVER_ADDRESS
 			self.orion_port = SERVER_PORT
 
@@ -263,7 +257,10 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 
 				# Execute the query 
 				args = ThrfOrn_.ThrfL2os()
-				args.sVnamespace = "DEFAULT"
+				if so.orion_ns is None:
+					args.sVnamespace = "DEFAULT"
+				else:
+					args.sVnamespace = so.orion_ns
 				args.sVosqlstring = form['query'].value	# TODO: check if it's a dangerous query	
 				args.bVonlysecondary = False
 				args.iVtimestamp = 0 # TODO: Helpers.getTimestamp()
@@ -406,6 +403,14 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			so.orion_port = int(port)
 			self._send_response(200, "text/plain", ("connected to %s:%d" % (so.orion_host, so.orion_port)))
 
+		elif ( self.path == '/change_namespace/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			namespace = form['namespace'].value
+			so = self.Session()
+			so.orion_ns = namespace.upper()
+			self._send_response(200, "text/plain", ("changed namespace to %s" % (so.orion_ns)))
+
 		elif ( self.path == '/network_add/'):
 			form = self._get_form_data()
 			fmt = form['format'].value
@@ -510,8 +515,15 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			out.add_row(["server port", self.server_port])
 			out.add_row(["websocket port", self.server_port+1])
 			so = self.Session()
-			out.add_row(["session orion host", so.orion_host])
-			out.add_row(["session orion port", so.orion_port])
+			if hasattr(so,'orion_host'):
+				out.add_row(["session orion host", so.orion_host])
+				out.add_row(["session orion port", so.orion_port])
+				out.add_row(["session namespace", so.orion_ns])
+			else:
+				out.add_row(["session orion host", "Unknown"])
+				out.add_row(["session orion port", "Unknown"])
+				out.add_row(["session namespace", "Unknown"])
+
 			self._send_response(200, "text/plain", "\r\n"+out.get_string())
 
 		else:
@@ -599,7 +611,8 @@ def start_server(obj):
 	obj.serve_forever()
 
 HandlerClass = RequestHandler
-ServerClass  = BaseHTTPServer.HTTPServer
+#ServerClass  = BaseHTTPServer.HTTPServer
+ServerClass = ThreadedHTTPServer
 Protocol     = "HTTP/1.0"
 
 if sys.argv[1:]:
