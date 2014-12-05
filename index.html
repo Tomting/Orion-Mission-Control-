@@ -394,9 +394,9 @@
 								.attr("x",mainCircle.attr("cx"))
 								.attr("y",mainCircle.attr("cy"))
 								.attr("text-anchor", "middle")
-								.text("DEFAULTDC")
+								.text("DEFAULTDC1")
 
-							var strIP = "192.168.0.";
+							var strIP = "10.249.18.";
 							var indexDegrees = posDegrees;
 							for (i=0; i<numElements; i++) {
 								var p0 = cx+r*Math.cos(indexDegrees * 0.0174532925);
@@ -460,7 +460,7 @@
 							id:"d3_list",
 							batch:"d3_list",
 							resize:true,
-							url:"/js/d3/data/flare.json",
+							url:"/js/d3/data/flare2.json",
 							ready:function(){
 
     // Calculate total nodes, max label length
@@ -1010,17 +1010,37 @@
         	};
 
         	// WINDOW - Change Server
-        	var window_change_server = {
-        		view:"window",
-        		id:"window_change_server",
-        		head:"Change Server",
-        		position:"center",
-        		modal:true,
-        		body:{view:"button", label:"Close", width:70, click:("$$('window_change_server').hide();")}, 
-        	};
+			var ui_change_server =  {
+				view:"window", 
+				id:"ui_change_server", 
+				width:640, 
+				height:480, 
+				position:"center", 
+				head:"Change Server", 
+				modal:true,
+				body: {
+					rows: [
+						{ 
+							view:"form", 
+							width:400,
+							elements:[
+								{ view:"text", label:"Host" },
+								{ view:"text", label:"Port", value:"9011" },
+								{ view:"text", label:"Domain", value:"DEFAULT" },
+								{ margin:5, 
+									cols:[
+										{ view:"button", value:"Change" , type:"form" },
+										{ view:"button", value:"Cancel", click:("$$('ui_change_server').hide();") }
+									]
+								}
+							]
+						}				
+					]				
+				}, 
+			};
 
         	function form_change_server() {
-        		$$("window_change_server").show();        	}
+        		$$("ui_change_server").show();        	}
 
 			var popup_prefs = {
 				view:"popup", id:"popup_prefs",
@@ -1062,7 +1082,7 @@
 			webix.ready(function(){
 				webix.ui(ui);
 				webix.ui(popup_prefs);
-				webix.ui(window_change_server);
+				webix.ui(ui_change_server);
 				$$("sidemenu").select("cfg_sqleditor");
 				$$("sidemenu").callEvent("onItemClick", ["cfg_sqleditor"]);
 
@@ -1077,8 +1097,8 @@
 						show_error(text);
 				}});  
 
-				// TODO: this is not more needed if websocket works...
 				/*
+				// TODO: this is not more needed if websocket works...
 				setInterval(function(){
 					var value = Math.floor(Math.random()*100)+1;
 					$$('gage1').setValue(value);

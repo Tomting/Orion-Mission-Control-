@@ -406,10 +406,109 @@ Console.prototype.doEval = function() {
           return;
         } 
         this.tokens.consume();
-        this.requestWithParams("/table_touch/", { name:name, format:'text' } );
+        this.requestWithParams("/table_touch/", { table:name, format:'text' } );
+      } else if (token == "CLEAN") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_clean/", { table:name, format:'text' } );
+      } else if (token == "PURGE") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_purge/", { table:name, format:'text' } );
+      } else if (token == "SHRINK") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_shrink/", { table:name, format:'text' } );
+      } else if (token == "REBUILD") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_rebuild/", { table:name, format:'text' } );
+      } else if (token == "COMPACTION") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_compaction/", { table:name, format:'text' } );
+      } else if (token == "SPLIT") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_split/", { table:name, format:'text' } );
+      } else if (token == "STORE") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_store/", { table:name, format:'text' } );
+      } else if (token == "FORGET") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_forget/", { table:name, format:'text' } );
+      } else if (token == "LOAD") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_load/", { table:name, format:'text' } );
+      } else if (token == "RELOAD") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_reload/", { table:name, format:'text' } );
+      } else if (token == "INFO") {
+        this.tokens.consume();
+        var name = this.tokens.nextToken();
+        if (name == undefined) {
+          this.generateSubcommandError("TABLE");
+          return;
+        } 
+        this.tokens.consume();
+        this.requestWithParams("/table_info/", { table:name, format:'text' } );
       } else {
         this.generateSubcommandError("TABLE");
-      }      
+      }    
     }
   } else if (token == "CONNECT") {
       this.tokens.consume();
@@ -429,8 +528,29 @@ Console.prototype.doEval = function() {
       this.requestWithParams("/connect/", { host:host, port:port, format:'text' } );
   } else if (token == "HELP") {
     this.tokens.consume();
-    if (this.tokens.nextToken() != undefined) {
-      this.error('HELP does not take any arguments');
+    var command = this.tokens.nextToken();
+    if (command != undefined) {
+        if (command == "NETWORK") {
+          this.printUnicode("\r\n\tUSAGE:"+DARK_BLACK+" NETWORK"+SANE+BLUE+" <command>\r\n\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"ADD"+SANE+BLUE+" <host> <port>"+SANE+"\t\tAdd a node to network\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"REMOVE"+SANE+BLUE+" <host> <port>"+SANE+"\t\tRemove a node from network\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"JOIN"+SANE+BLUE+" <host> <port>"+SANE+"\t\tJoin a node on network\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"LEAVE"+SANE+"\r\n");
+        } else if (command == "TABLE") {
+          this.printUnicode("\r\n\tUSAGE:"+DARK_BLACK+" TABLE"+SANE+BLUE+" <command>\r\n\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"TOUCH"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"CLEAN"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"PURGE"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"SHRINK"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"REBUILD"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"COMPACTION"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"SPLIT"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"STORE"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"FORGET"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"LOAD"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"RELOAD"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+          this.printUnicode("\t"+DARK_BLACK+"INFO"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+        }
     } else {
       this.vt100('Supported commands:\r\n' +
        'CLEAR CONNECT SELECT INSERT UPDATE NETWORK TABLE GOSSIPER CONFIG\r\n'+
@@ -439,7 +559,7 @@ Console.prototype.doEval = function() {
   } else if (token == "CONFIG") {
     this.tokens.consume();
     this.requestWithParams("/config/", { format:'text' } );
-  } else if (token == "NAMESPACE") {
+  } else if ((token == "NAMESPACE")||(token == "NS")) {
     this.tokens.consume();
     var token = this.tokens.nextToken()
     if (token == undefined) {

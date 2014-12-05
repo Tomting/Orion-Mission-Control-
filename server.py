@@ -109,7 +109,7 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 
 		except Exception as n:
 			print n
-			return [False, None]
+			return [False, n.message]
 
 	def _execute_gossiper(self):
 		try:
@@ -158,17 +158,24 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			args.iVport = int(port)
 		return args
 
-	def _make_tablet_command(self, namespace, tablet, command ):
+	def _make_table_command(self, name, command ):
 		args = ThrfOrn_.ThrfComm()
+		args.cVmutabledestination = ThrfOrn_.ThrfLmtb()
 		args .iVcommand = iEreservedkeyword.TABLE
 		args.iVsubcommand = iEreservedkeyword._NAMES_TO_VALUES[command]
-		args.cVmutable = ThrfOrn_.ThrfLmtb() 		
-		args.cVmutable.sVnamespace = namespace
-		args.cVmutable.sVtable = tablet
-		args.cVmutabledestination = ThrfOrn_.ThrfLmtb()
-		args.cVmutabledestination.sVnamespace = namespace
-		args.cVmutabledestination.sVtable = dummy.trim().toUpperCase()	 		
-		args.sVnewtoken = dummy
+		args.cVmutable = ThrfOrn_.ThrfLmtb() 	
+		so = self.Session()
+		if so.orion_ns is None:
+			args.cVmutable.sVnamespace = "DEFAULT"
+			args.cVmutabledestination.sVnamespace = "DEFAULT"
+		else:
+			args.cVmutable.sVnamespace = so.orion_ns
+			args.cVmutabledestination.sVnamespace = so.orion_ns
+		args.cVmutable.sVtable = name
+		#args.cVmutabledestination.sVtable = dummy.trim().toUpperCase()	 		
+		#args.sVnewtoken = dummy
+		args.cVmutabledestination.sVtable = ""	 		
+		args.sVnewtoken = ""
 		args.iVtimestamp = 0
 		return args		
 
@@ -455,7 +462,146 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		elif ( self.path == '/table_touch/'):
 			form = self._get_form_data()
 			fmt = form['format'].value
-			name = form['name'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "TOUCH")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_clean/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "CLEAN")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_purge/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "PURGE")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_shrink/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "SHRINK")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_rebuild/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "REBUILD")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_compaction/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "COMPACTION")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_split/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "SPLIT")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_store/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "STORE")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_forget/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "FORGET")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_load/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "LOAD")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_reload/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "RELOAD")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", out)
+
+		elif ( self.path == '/table_info/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			name = form['table'].value
+			args = self._make_table_command(name, "INFO")
+			ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", response)
 
 		elif ( self.path == '/gossiper/'):
 			form = cgi.FieldStorage(
