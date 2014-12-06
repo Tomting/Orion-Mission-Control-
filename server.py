@@ -651,6 +651,19 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			self.wfile.write("\r\n")
 			self.wfile.write(ret)
 
+		elif ( self.path == '/topspeed/'):
+			form = self._get_form_data()
+			fmt = form['format'].value
+			args = ThrfOrn_.ThrfComm()
+	 		args.iVcommand = iEreservedkeyword.TOP;
+	 		ret, response = self._execute_thrift_command(args);
+			if ret == True:
+				out = "OK"
+			else:
+				out = "ERROR: %s" % response
+			self._send_response(200, "text/plain", response)	 		
+
+
 		elif ( self.path == '/config/'):
 			form = self._get_form_data()
 			fmt = form['format'].value
@@ -675,9 +688,30 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		else:
 			super(RequestHandler, self).do_GET()
 
+class TopDataElement(object):
+   """Arbitrary objects, referenced by topMap"""
+   pass
+
 class OrionStat(WebSocket):
 	started = False
-	data = []
+	topMap = dict()
+	lastTimestamp = 0
+
+	'''
+	def _getSizedTime(value):
+		kB = 1024.0
+		MB = kB * 1024.0	
+		GB = MB * 1024.0;
+		ms = 1000.0;
+		s = ms * 1000.0;
+		m = s * 60;
+		h = m * 60;
+		if (value < ms) return us + " us";
+		if (value < s) return roundToDecimals(us /ms, 2) + " ms";
+		if (value < m) return roundToDecimals(us /s, 2) + " s";		
+		if (value < h) return roundToDecimals(us /m, 1) + " m";	
+		return roundToDecimals(us /h, 1) + " h";										
+	'''
 
 	def orion_top(self):
 		try:
@@ -694,14 +728,61 @@ class OrionStat(WebSocket):
 			socket.close()
 
 			rows = []
-			for row in ret.cVreturntop.cVtopelement:
+			diffTimestamp = ret.cVreturntop.iVtimestamp - self.lastTimestamp;
+			for t in ret.cVreturntop.cVtopelement:
+				if t.sVtablet not in self.topMap:
+					topDataObject = TopDataElement()
+					topDataObject.readDiffTime = 0
+					topDataObject.writeDiffTime = 0
+					topDataObject.orderTime = 0
+					topDataObject.readTime = 0
+					topDataObject.writeTime = 0	
+					topDataObject.readDiffCountL2 = 0
+					topDataObject.writeDiffCountL2 = 0					
+					topDataObject.readCountL2 = 0
+					topDataObject.writeCountL2 = 0
+					topDataObject.readDiffCountL1 = 0
+					topDataObject.writeDiffCountL1 = 0						
+					topDataObject.readCountL1 = 0
+					topDataObject.writeCountL1 = 0
+					self.topMap[t.sVtablet] = topDataObject
+
+				topData = self.topMap[t.sVtablet]
+				topData.readDiffTime = t.iVreadtime - topData.readTime
+				topData.writeDiffTime = t.iVwritetime - topData.writeTime;
+				topData.orderTime = topData.readDiffTime + topData.writeDiffTime;
+				topData.readTime = t.iVreadtime;
+				topData.writeTime = t.iVwritetime;	
+				topData.readDiffCountL2 = t.iVreadcountl2 - topData.readCountL2;
+				topData.writeDiffCountL2 = t.iVwritecountl2 - topData.writeCountL2;					
+				topData.readCountL2 = t.iVreadcountl2;
+				topData.writeCountL2 = t.iVwritecountl2;
+				topData.readDiffCountL1 = t.iVreadcountl1 - topData.readCountL1;
+				topData.writeDiffCountL1 = t.iVwritecountl1 - topData.writeCountL1;						
+				topData.readCountL1 = t.iVreadcountl1;
+				topData.writeCountL1 = t.iVwritecountl1;
+
+				diffTime = diffTimestamp / 1000
 				tmp = {}
-				tmp['NAME'] = row.sVtablet
-				tmp['TOTAL'] = 0
-				tmp['LOAD'] = 0
-				tmp['READ'] = row.iVreadtime
-				tmp['WRITE'] = row.iVwritetime
-				rows.append( tmp )
+				tmp['NAME'] = t.sVtablet
+				tmp['TOTAL'] = topData.orderTime
+				if (diffTime == 0):
+					tmp['LOAD'] = 0
+				else:
+					tmp['LOAD'] = '{0:.3g}'.format(100 * topData.orderTime / diffTime) 
+
+				tmp['READ'] = topData.readDiffTime
+				if (topData.readDiffTime == 0):
+					tmp['READSPEED'] = 0
+				else:					
+					tmp['READSPEED'] = 1000000 * topData.readDiffCountL1 / topData.readDiffTime
+				
+				tmp['WRITE'] = topData.writeDiffTime
+				if (topData.writeDiffTime == 0):
+					tmp['WRITESPEED'] = 0
+				else:
+					tmp['WRITESPEED'] = 1000000 * topData.writeDiffCountL1 / topData.writeDiffTime
+ 				rows.append( tmp)
 			data = { "data":rows }
 
 	 		self.data = json.dumps(data)

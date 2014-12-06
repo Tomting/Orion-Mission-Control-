@@ -34,6 +34,16 @@
 		<link rel="stylesheet" href="/js/console/console/styles.css" type="text/css">
 		-->
 		<style>
+			.rating_bar_element{
+				background: #666;
+				width:8px;
+				height:18px;
+				margin-top:6px;
+				float:left;
+			}
+			.rating_star{
+				background: #0A0;
+			}
 			.svgchart {
 				font: 10px sans-serif;
 				shape-rendering: crispEdges;
@@ -177,6 +187,13 @@
         	/* 
         	 * OSQL EDITOR
         	 **/
+			function removeAllColumns(){
+				var datatable = $$('sql_result');
+				var columns = datatable.config.columns;
+				console.log(columns);
+				datatable.refreshColumns([{header:""}]);
+			} 
+
 			function execute_query(){
 				var text = $$("sql_editor").getValue();
 				webix.ajax().post("/execute_query/", { query:text, format:"json" }, { success:function(text, xml, xhr) {
@@ -185,6 +202,7 @@
 					console.log(text);
 					var json = webix.DataDriver.json.toObject(text);
 					datatable.clearAll();
+					removeAllColumns();
 					if (json.config.columns.length > 0) {
 						datatable.parse(text);
 						datatable.refreshColumns(json.config.columns);
@@ -201,6 +219,7 @@
 			function clear_query(){
 				$$("sql_editor").setValue("");
 				$$("sql_result").clearAll();
+				removeAllColumns();
 			}
 
 			function not_yet(){
@@ -277,13 +296,22 @@
 					{
 						view:"datatable",
 						id:"datatable_stats",
+						scroll:true,
 						type:"json",
 						columns:[
-							{ id:"NAME", header:"NAME", width:500 },
-							{ id:"TOTAL", header:"TOTAL ms" },
-							{ id:"LOAD", header:"LOAD %" },
-							{ id:"READ", header:"READ ms" },
-							{ id:"WRITE", header:"WRITE ms" },
+							{ id:"NAME", header:{ text:"NAME", rowspan:2 }, fillspace:1 },
+							{ id:"LOAD", header:{ text:"LOAD", rowspan:2 }, width:115, template:function(obj) {
+									var html = "";
+									for (var i=1; i<=10; i++)
+										html+="<div title='"+i+"' class='rating_bar_element "+ ( i <= 8 ? "rating_star" : "")+"'></div>";
+									return html;
+								} 
+							},
+							{ id:"TOTAL", header:{ text:"TOTAL", rowspan:2 } ,fillspace:1  },
+							{ id:"READ", header:[{ text:"READ", colspan:2 },"ms"], fillspace:1 },
+							{ id:"READSPEED", header:["","qps"], fillspace:1 },
+							{ id:"WRITE", header:[{ text:"WRITE", colspan:2 },"ms"], fillspace:1 },
+							{ id:"WRITESPEED", header:["","qps"], fillspace:1 },
 						]
 					}
 				]

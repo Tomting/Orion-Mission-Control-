@@ -553,7 +553,7 @@ Console.prototype.doEval = function() {
         }
     } else {
       this.vt100('Supported commands:\r\n' +
-       'CLEAR CONNECT SELECT INSERT UPDATE NETWORK TABLE GOSSIPER CONFIG\r\n'+
+       'CLEAR CONNECT SELECT INSERT UPDATE NETWORK TABLE GOSSIPER CONFIG TOPSPEED\r\n'+
        '\r\n');
     }
   } else if (token == "CONFIG") {
@@ -567,18 +567,9 @@ Console.prototype.doEval = function() {
         return;      
     }
     this.requestWithParams("/change_namespace/", { namespace:token, format:'text' } );
-  } else if (token == "NEW") {
+  } else if (token == "TOPSPEED") {
     this.tokens.consume();
-    if (this.tokens.nextToken() != undefined) {
-      this.error('NEW does not take any arguments');
-    } else if (this.currentLineIndex >= 0) {
-      this.error('Cannot call NEW from a program');
-    } else if (this.program.length == 0) {
-      this.ok();
-    } else {
-      this.vt100('Do you really want to delete the program (y/N) ');
-      this.gotoState(6 /* STATE_NEW_Y_N */);
-    }
+    this.requestWithParams("/topspeed/", { format:'text' } );
   } else if (token == "PRINT" || token == "?") {
     this.tokens.consume();
     this.doPrint();
