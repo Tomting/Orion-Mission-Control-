@@ -302,18 +302,18 @@
 						scroll:true,
 						type:"json",
 						columns:[
-							{ id:"NAME", header:{ text:"NAME", rowspan:2 }, fillspace:1 },
-							{ id:"LOAD", header:{ text:"LOAD", rowspan:2 }, width:115, template:function(obj) {
+							{ id:"NAME", header:{ text:"<center><b>NAME</b></center>", rowspan:2 }, fillspace:1 },
+							{ id:"LOAD", header:{ text:"<center><b>LOAD</b></center>", rowspan:2 }, width:115, template:function(obj) {
 									var html = "";
 									for (var i=1; i<=10; i++)
 										html+="<div title='"+i+"' class='rating_bar_element "+ ( i <= 8 ? "rating_star" : "")+"'></div>";
 									return html;
 								} 
 							},
-							{ id:"TOTAL", header:{ text:"TOTAL", rowspan:2 } ,fillspace:1  },
-							{ id:"READ", header:[{ text:"READ", colspan:2 },"ms"], fillspace:1 },
+							{ id:"TOTAL", header:{ text:"<center><b>TOTAL</b></center>", rowspan:2 } ,fillspace:1  },
+							{ id:"READ", header:[{ text:"<center><b>READ</b></center>", colspan:2 },"ms"], fillspace:1 },
 							{ id:"READSPEED", header:["","qps"], fillspace:1 },
-							{ id:"WRITE", header:[{ text:"WRITE", colspan:2 },"ms"], fillspace:1 },
+							{ id:"WRITE", header:[{ text:"<center><b>WRITE</b></center>", colspan:2 },"ms"], fillspace:1 },
 							{ id:"WRITESPEED", header:["","qps"], fillspace:1 },
 						]
 					}
