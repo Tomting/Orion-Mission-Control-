@@ -5,7 +5,6 @@ webix.protoUI({
 	},
 	$init:function(){
 		this._ready_awaits = 0;
-
 		this.attachEvent("onAfterLoad", function(){
 			if (this._ready_awaits == 2){
 				if (this.config.ready){
@@ -19,7 +18,6 @@ webix.protoUI({
 	},
 	_render_once:function(){
 		webix.require("d3/d3.v3.min.js",function(first_init){
-
 			if (this.config.init)
 				this.config.init.call(this);
 			if (this._ready_awaits == 1 && this.config.ready){
@@ -27,8 +25,6 @@ webix.protoUI({
 				this._ready_awaits = 3;
 			} else 
 				this._ready_awaits = 2;
-
-
   		}, this);
 	},
 	$setSize:function(x,y){
@@ -44,5 +40,14 @@ webix.protoUI({
 			this.config.ready.call(this, null);
 		this._ready_awaits = 3;
 		this.initialized = true;
+	},
+	setData:function(data) {
+		//this.$view.innerHTML = "";
+		this.data = data;	
+		//this.config.ready.call(this, this.data);	
+	},
+	refresh:function() {
+		this.$view.innerHTML = "";
+		this.config.ready.call(this, this.data);	
 	}
 }, webix.AtomDataLoader, webix.EventSystem, webix.ui.view );

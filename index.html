@@ -102,7 +102,7 @@
 				webix.message({type:"error", text:message, expire:1000 });
 			}
 			function show_message(message){
-				webix.message({text:message, expire:1000 });
+				webix.message({type:"success", text:message, expire:1000 });
 			}
 
 			/* WEBSOCKET */ 
@@ -126,6 +126,9 @@
 				if (json.msgtype == "top") {
 					$$("datatable_stats").clearAll();
 					$$("datatable_stats").parse(json.params);
+				} else if (json.msgtype == "graph") {
+					$$("d3_graph").setData(json.params);
+					$$("d3_graph").initialize();
 				}
 			}
 			function onError(evt) {
@@ -158,7 +161,7 @@
 								$$("header").setValue(this.getItem(id).title);
 								if (id == 'cfg_network') {
 									$$('d3_network').initialize();
-									//$$('d3_list').initialize();
+									//$$('d3_graph').initialize();
 								}
 							}
 						},
@@ -320,19 +323,54 @@
 			/**
 			 * N E T W O R K 
 			 **/
+
+			 function onAddNode(){
+				if (!$$("form_dialog_add_node").validate()) {
+					webix.message({ type:"error", text:"Form data is invalid" });	
+					return false;
+				}
+
+			 	var host = $$("add_node_element_host").getValue();
+			 	var port = $$("add_node_element_port").getValue();
+				webix.ajax().post("/network_add/", { host:host, port:port, format:"json" }, { 
+					success:function(text, xml, xhr) {
+						//var json = webix.DataDriver.json.toObject(text);
+						show_message(text);
+					}, 
+					error:function(text, xml, hxr) {
+						show_error(text);
+				}});  
+				$$('win_add_node').close();
+			 }
+
+			function onRefreshGraph() {
+				if ($$("filter_graph").getValue() == "Network Ring") {
+					not_yet();
+				} else {
+					$$("d3_graph").refresh()
+				}
+			}
+
 			var view_dialog_add_node = {
 				rows: [
 					{ view:"form", 
-					  id:"view_dialog_add_node",
+					  id:"form_dialog_add_node",
 					  width:400,
 					  elements:[
-					  	{ view:"text", label:"Host" },
-					  	{ view:"text", label:"Port" },
+					  	{ view:"text", name:"add_node_element_host", id:"add_node_element_host", label:"Host", validate:webix.rules.isString },
+					  	{ view:"text", name:"add_node_element_port", id:"add_node_element_port", label:"Port", validate:webix.rules.isNumber },
 					  	{ margin:5, cols:[
-					  		{ view:"button", value:"Add" , type:"form" },
+					  		{ view:"button", value:"Add", type:"form", click:"onAddNode" },
 					  		{ view:"button", value:"Cancel", click:("$$('win_add_node').close();") }
 					  		]}
-					  ]
+					  ], elementsConfig:{
+						labelAlign:"top",
+						on:{
+							'onChange':function(newv, oldv){
+								this.validate();
+							}
+						}
+					}
 					}				
 				]				
 			};
@@ -367,10 +405,8 @@
         		batch:"cfg_network",
 				rows:[
 					{view:"toolbar", elements:[
-						{view:"icon", icon:"refresh", click:not_yet, width:100 },
+						{view:"icon", icon:"refresh", click:onRefreshGraph, width:100 },
 						{view:"icon", icon:"plus", click:add_node, width:100 },
-						{view:"icon", icon:"compress", click:zoom_out, width:100 },
-						{view:"icon", icon:"expand", click:zoom_in, width:100 },
 						{view:"icon", icon:"search", click:not_yet, width:100 },
 						{view:"spacer"},
 						{view:"segmented", id:"filter_graph", options:[ "Network Ring", "Cloud Graph"], width:300, on:{ 
@@ -378,7 +414,7 @@
 								if (newv == "Network Ring") {
 									$$("network_multiview").showBatch("d3_network");
 								} else {
-									$$("network_multiview").showBatch("d3_list");
+									$$("network_multiview").showBatch("d3_graph");
 								}
 							}
 						} },
@@ -485,10 +521,10 @@
 						}
 						},
 						{ view:"d3-chart",
-							id:"d3_list",
-							batch:"d3_list",
+							id:"d3_graph",
+							batch:"d3_graph",
 							resize:true,
-							url:"/js/d3/data/flare2.json",
+							/*url:"/js/d3/data/flare2.json",*/
 							ready:function(){
 
     // Calculate total nodes, max label length

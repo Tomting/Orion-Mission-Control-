@@ -425,7 +425,10 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			port = form['port'].value
 			args = self._make_network_command(host, port, "ADD")
 			ret, response = self._execute_thrift_command(args);
-			self._send_response(200, "text/plain", ret)
+			if (ret == False and fmt == "json"):
+				self._send_response(500, "text/plain", "cannot add %s %s" % (host, port))
+			else:
+				self._send_response(200, "text/plain", ret)
 
 		elif ( self.path == '/network_remove/'):
 			form = self._get_form_data()
@@ -713,6 +716,65 @@ class OrionStat(WebSocket):
 		return roundToDecimals(us /h, 1) + " h";										
 	'''
 
+	def _add_graph_datacenter(self, name):
+		config = {}
+		config['name'] = name
+		config['children'] = []
+		return config
+
+	def _add_graph_node(self, datacenter, name):
+		node = {}
+		node['name'] = name
+		node['children'] = []
+		datacenter['children'].append(node)
+		return node
+
+	def _add_graph_address(self, node, name):
+		address = {}
+		address['name'] = name
+		node['children'].append(address)
+		return address
+
+	def orion_graph(self):
+		try:
+			socket = TSocket.TSocket(SERVER_ADDRESS, SERVER_PORT)
+			socket.setTimeout(SOCKET_TIMEOUT_MS);
+			transport = TTransport.TFramedTransport(socket)
+			protocol = TBinaryProtocol.TBinaryProtocol(transport)
+			client = ThrfOrn_.Client(protocol)
+
+			transport.open()
+
+			cGossip = ThrfOrn_.ThrfGoss()
+			response = client.gossp(cGossip, True, True);
+
+			transport.close()
+			socket.close()
+
+			graph = {}
+			datacenter = {}
+			node = {}
+			graph['name'] = "ORION"
+			graph['children'] = [] 
+
+			for item in response.cVgossipelement:
+				if item.sVdatacenterid not in datacenter:
+					datacenter[item.sVdatacenterid] = self._add_graph_datacenter(item.sVdatacenterid)
+				if item.sVnodeid not in node: 
+					node[item.sVnodeid] = self._add_graph_node(datacenter[item.sVdatacenterid], item.sVnodeid)
+				self._add_graph_address(node[item.sVnodeid], "%s %d [%s, %f]" % (item.sVaddress, item.iVport,iEstategossipnode._VALUES_TO_NAMES[item.iVstate], item.dVphiaccrual))
+
+			for item in datacenter:
+				graph['children'].append(datacenter[item])
+
+	 		self.handleMessage("graph", json.dumps(graph));
+
+	 		if (self.started):
+				threading.Timer(10, self.orion_graph).start()
+		except Exception as n:
+			print n
+
+
 	def orion_top(self):
 		try:
 			socket = TSocket.TSocket(SERVER_ADDRESS, SERVER_PORT)
@@ -794,20 +856,19 @@ class OrionStat(WebSocket):
  				rows.append( tmp)
 			data = { "data":rows }
 
-	 		self.data = json.dumps(data)
-	 		self.handleMessage("top");
+	 		self.handleMessage("top", json.dumps(data));
 
 	 		if (self.started):
 				threading.Timer(10, self.orion_top).start()
 		except Exception as n:
 			print n
 
-	def handleMessage(self, messagetype):
-		if self.data is None:
-			self.data = ''
+	def handleMessage(self, messagetype, data):
+		if data is None:
+			data = ''
 
 		try:
-			self.sendMessage('{ msgtype:"'+messagetype+'", params:'+str(self.data) + '}')
+			self.sendMessage('{ msgtype:"'+messagetype+'", params:'+str(data) + '}')
 		except Exception as n:
 			print n
 
@@ -822,6 +883,7 @@ class OrionStat(WebSocket):
 		if not self.started:
 			self.started = True
 			self.orion_top()
+			self.orion_graph()
 
 		print self.address, 'connected'
 		#for client in self.server.connections.itervalues():
