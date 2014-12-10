@@ -550,7 +550,16 @@ Console.prototype.doEval = function() {
           this.printUnicode("\t"+DARK_BLACK+"LOAD"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
           this.printUnicode("\t"+DARK_BLACK+"RELOAD"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
           this.printUnicode("\t"+DARK_BLACK+"INFO"+SANE+BLUE+" <table>"+SANE+"\t\t....\r\n");
+        } else if (command == "CONNECT") {
+          this.printUnicode("\r\n\tUSAGE:"+DARK_BLACK+" CONNECT"+SANE+BLUE+" <host> <port>\r\n\r\n");
+        } else if (command == "NAMESPACE") {
+          this.printUnicode("\r\n\tUSAGE:"+DARK_BLACK+" NAMESPACE"+SANE+BLUE+" <namespace>\r\n\r\n");
+        } else if (command == "CONFIG") {
+          this.printUnicode("\r\n\tShow the current configuration used by Orion Mission Control.\r\n\r\n");
+        } else if (command == "GOSSIPER") {
+          this.printUnicode("\r\n\tShow the network nodes.\r\n\r\n");
         }
+        this.printUnicode(SANE)
     } else {
       this.vt100('Supported commands:\r\n' +
        'CLEAR CONNECT SELECT INSERT UPDATE NETWORK TABLE GOSSIPER CONFIG TOPSPEED\r\n'+

@@ -1038,6 +1038,19 @@
         	};
 
         	// WINDOW - Change Server
+        	function onChangeServer() {
+				webix.ajax().post("/change_server/", { format:"json" }, { 
+					success:function(text, xml, xhr) {
+						var json = webix.DataDriver.json.toObject(text);
+						$$('label_orion_address').setValue("ORION:"+json.orionserver+":"+json.orionport+":DEFAULT");
+						// start connection with the websocket server
+						doConnect(json.wsserver, json.wsport);
+					}, 
+					error:function(text, xml, hxr) {
+						show_error(text);
+				}});  
+        	}
+
 			var ui_change_server =  {
 				view:"window", 
 				id:"ui_change_server", 
@@ -1052,12 +1065,12 @@
 							view:"form", 
 							width:400,
 							elements:[
-								{ view:"text", label:"Host" },
-								{ view:"text", label:"Port", value:"9011" },
-								{ view:"text", label:"Domain", value:"DEFAULT" },
+								{ view:"text", id:"host", label:"Host" },
+								{ view:"text", id:"port", label:"Port", value:"9011" },
+								{ view:"text", id:"namespace", label:"Domain", value:"DEFAULT" },
 								{ margin:5, 
 									cols:[
-										{ view:"button", value:"Change" , type:"form" },
+										{ view:"button", value:"Change" , type:"form", click:onChangeServer },
 										{ view:"button", value:"Cancel", click:("$$('ui_change_server').hide();") }
 									]
 								}
@@ -1068,7 +1081,8 @@
 			};
 
         	function form_change_server() {
-        		$$("ui_change_server").show();        	}
+        		$$("ui_change_server").show();        	
+        	}
 
 			var popup_prefs = {
 				view:"popup", id:"popup_prefs",
@@ -1099,7 +1113,7 @@
 				rows: [
 					{view:"toolbar", height:50, elements:[
 						{view:"label", label:"<div style = 'font-size:18px; margin-right:5px; color:#fff;'>ORION Mission Control</div>" },
-						{view:"label", id:"label_orion_address", label:"<div style = 'font-size:18px; margin-right:5px; color:#fff;'>ORION:LOCALHOST:9011</div>" },
+						{view:"label", id:"label_orion_address", label:"" },
 						{view:"icon", icon:"user"},
 						{view:"icon", icon:"cog", popup:"popup_prefs"}
 					]},

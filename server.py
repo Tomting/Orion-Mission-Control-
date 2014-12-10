@@ -751,6 +751,15 @@ class OrionStat(WebSocket):
 				topData.readDiffTime = t.iVreadtime - topData.readTime
 				topData.writeDiffTime = t.iVwritetime - topData.writeTime;
 				topData.orderTime = topData.readDiffTime + topData.writeDiffTime;
+
+				print "t.iVreadtime   %d" % t.iVreadtime
+				print "t.iVwritetime  %d" % t.iVwritetime
+				print "topData.readTime %d" % topData.readTime
+				print "topData.writeTime %d" % topData.writeTime
+				print "topData.readDiffTime %d" % topData.readDiffTime
+				print "topData.writeDiffTime %d" % topData.writeDiffTime
+				print "======"
+
 				topData.readTime = t.iVreadtime;
 				topData.writeTime = t.iVwritetime;	
 				topData.readDiffCountL2 = t.iVreadcountl2 - topData.readCountL2;
