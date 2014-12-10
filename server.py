@@ -179,6 +179,25 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		args.iVtimestamp = 0
 		return args		
 
+	def _add_graph_datacenter(self, name):
+		config = {}
+		config['name'] = name
+		config['children'] = []
+		return config
+
+	def _add_graph_node(self, datacenter, name):
+		node = {}
+		node['name'] = name
+		node['children'] = []
+		datacenter['children'].append(node)
+		return node
+
+	def _add_graph_address(self, node, name):
+		address = {}
+		address['name'] = name
+		node['children'].append(address)
+		return address
+
 	'''
 	def _sessionid_headers(self):
 		if self.headers.has_key('SESSIONID'):
@@ -606,6 +625,33 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 				out = "ERROR: %s" % response
 			self._send_response(200, "text/plain", response)
 
+		elif ( self.path == '/update_graph/'):
+			form = self._get_form_data()
+			#fmt = form['format'].value
+			ret, response = self._execute_gossiper()
+
+			graph = {}
+			datacenter = {}
+			node = {}
+			graph['name'] = "ORION"
+			graph['children'] = [] 
+
+			for item in response.cVgossipelement:
+				if item.sVdatacenterid not in datacenter:
+					datacenter[item.sVdatacenterid] = self._add_graph_datacenter(item.sVdatacenterid)
+				if item.sVnodeid not in node: 
+					node[item.sVnodeid] = self._add_graph_node(datacenter[item.sVdatacenterid], item.sVnodeid)
+				self._add_graph_address(node[item.sVnodeid], "%s %d [%s, %f]" % (item.sVaddress, item.iVport,iEstategossipnode._VALUES_TO_NAMES[item.iVstate], item.dVphiaccrual))
+
+			for item in datacenter:
+				graph['children'].append(datacenter[item])
+
+			self.send_response(200)
+			self.send_header("Content-type", "text/json")
+			self._attach_session_data()
+			self.end_headers()
+			self.wfile.write(json.dumps(graph))
+
 		elif ( self.path == '/gossiper/'):
 			form = cgi.FieldStorage(
 				fp=self.rfile,
@@ -615,7 +661,7 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 				})
 			fmt = form['format'].value
 
-			ret, response = self._execute_gossiper();
+			ret, response = self._execute_gossiper()
 			print ret
 			print response
 
@@ -716,65 +762,6 @@ class OrionStat(WebSocket):
 		return roundToDecimals(us /h, 1) + " h";										
 	'''
 
-	def _add_graph_datacenter(self, name):
-		config = {}
-		config['name'] = name
-		config['children'] = []
-		return config
-
-	def _add_graph_node(self, datacenter, name):
-		node = {}
-		node['name'] = name
-		node['children'] = []
-		datacenter['children'].append(node)
-		return node
-
-	def _add_graph_address(self, node, name):
-		address = {}
-		address['name'] = name
-		node['children'].append(address)
-		return address
-
-	def orion_graph(self):
-		try:
-			socket = TSocket.TSocket(SERVER_ADDRESS, SERVER_PORT)
-			socket.setTimeout(SOCKET_TIMEOUT_MS);
-			transport = TTransport.TFramedTransport(socket)
-			protocol = TBinaryProtocol.TBinaryProtocol(transport)
-			client = ThrfOrn_.Client(protocol)
-
-			transport.open()
-
-			cGossip = ThrfOrn_.ThrfGoss()
-			response = client.gossp(cGossip, True, True);
-
-			transport.close()
-			socket.close()
-
-			graph = {}
-			datacenter = {}
-			node = {}
-			graph['name'] = "ORION"
-			graph['children'] = [] 
-
-			for item in response.cVgossipelement:
-				if item.sVdatacenterid not in datacenter:
-					datacenter[item.sVdatacenterid] = self._add_graph_datacenter(item.sVdatacenterid)
-				if item.sVnodeid not in node: 
-					node[item.sVnodeid] = self._add_graph_node(datacenter[item.sVdatacenterid], item.sVnodeid)
-				self._add_graph_address(node[item.sVnodeid], "%s %d [%s, %f]" % (item.sVaddress, item.iVport,iEstategossipnode._VALUES_TO_NAMES[item.iVstate], item.dVphiaccrual))
-
-			for item in datacenter:
-				graph['children'].append(datacenter[item])
-
-	 		self.handleMessage("graph", json.dumps(graph));
-
-	 		if (self.started):
-				threading.Timer(10, self.orion_graph).start()
-		except Exception as n:
-			print n
-
-
 	def orion_top(self):
 		try:
 			socket = TSocket.TSocket(SERVER_ADDRESS, SERVER_PORT)
@@ -814,6 +801,7 @@ class OrionStat(WebSocket):
 				topData.writeDiffTime = t.iVwritetime - topData.writeTime;
 				topData.orderTime = topData.readDiffTime + topData.writeDiffTime;
 
+				'''
 				print "t.iVreadtime   %d" % t.iVreadtime
 				print "t.iVwritetime  %d" % t.iVwritetime
 				print "topData.readTime %d" % topData.readTime
@@ -821,6 +809,7 @@ class OrionStat(WebSocket):
 				print "topData.readDiffTime %d" % topData.readDiffTime
 				print "topData.writeDiffTime %d" % topData.writeDiffTime
 				print "======"
+				'''
 
 				topData.readTime = t.iVreadtime;
 				topData.writeTime = t.iVwritetime;	
@@ -840,7 +829,10 @@ class OrionStat(WebSocket):
 				if (diffTime == 0):
 					tmp['LOAD'] = 0
 				else:
-					tmp['LOAD'] = '{0:.3g}'.format(100 * topData.orderTime / diffTime) 
+					#percentage = '{0:.3g}'.format(100 * topData.orderTime / diffTime)
+					percentage = 100 * topData.orderTime / diffTime
+					percentage_scaled = percentage * 10 / 100 
+					tmp['LOAD'] = '%d' % int(percentage_scaled) 
 
 				tmp['READ'] = topData.readDiffTime
 				if (topData.readDiffTime == 0):
@@ -859,7 +851,7 @@ class OrionStat(WebSocket):
 	 		self.handleMessage("top", json.dumps(data));
 
 	 		if (self.started):
-				threading.Timer(10, self.orion_top).start()
+				threading.Timer(5, self.orion_top).start()
 		except Exception as n:
 			print n
 
@@ -883,7 +875,6 @@ class OrionStat(WebSocket):
 		if not self.started:
 			self.started = True
 			self.orion_top()
-			self.orion_graph()
 
 		print self.address, 'connected'
 		#for client in self.server.connections.itervalues():

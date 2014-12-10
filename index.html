@@ -121,14 +121,11 @@
 				show_error("disconnected");
 			}
 			function onMessage(evt) {
-				console.log("response: " + evt.data + '\n');
+				//console.log("response: " + evt.data + '\n');
 				var json = webix.DataDriver.json.toObject(evt.data);
 				if (json.msgtype == "top") {
 					$$("datatable_stats").clearAll();
 					$$("datatable_stats").parse(json.params);
-				} else if (json.msgtype == "graph") {
-					$$("d3_graph").setData(json.params);
-					$$("d3_graph").initialize();
 				}
 			}
 			function onError(evt) {
@@ -161,7 +158,6 @@
 								$$("header").setValue(this.getItem(id).title);
 								if (id == 'cfg_network') {
 									$$('d3_network').initialize();
-									//$$('d3_graph').initialize();
 								}
 							}
 						},
@@ -306,7 +302,7 @@
 							{ id:"LOAD", header:{ text:"<center><b>LOAD</b></center>", rowspan:2 }, width:115, template:function(obj) {
 									var html = "";
 									for (var i=1; i<=10; i++)
-										html+="<div title='"+i+"' class='rating_bar_element "+ ( i <= 8 ? "rating_star" : "")+"'></div>";
+										html+="<div title='"+i+"' class='rating_bar_element "+ ( i <= obj.LOAD ? "rating_star" : "")+"'></div>";
 									return html;
 								} 
 							},
@@ -343,11 +339,23 @@
 				$$('win_add_node').close();
 			 }
 
+			 function refreshCloudGraph() {
+			 	webix.ajax().post("/update_graph/", { format:"json" }, { 
+			 		success:function(text, xml, xhr) {
+			 			var json = webix.DataDriver.json.toObject(text);
+			 			$$("d3_graph").setData(json)
+			 			$$("d3_graph").refresh()
+					}, 
+					error:function(text, xml, hxr) {
+						show_error(text);
+				}});  
+			}
+
 			function onRefreshGraph() {
 				if ($$("filter_graph").getValue() == "Network Ring") {
 					not_yet();
 				} else {
-					$$("d3_graph").refresh()
+					refreshCloudGraph();
 				}
 			}
 
@@ -524,7 +532,7 @@
 							id:"d3_graph",
 							batch:"d3_graph",
 							resize:true,
-							/*url:"/js/d3/data/flare2.json",*/
+							url:"post->/update_graph/",
 							ready:function(){
 
     // Calculate total nodes, max label length
