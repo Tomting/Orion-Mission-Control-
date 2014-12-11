@@ -353,6 +353,22 @@ Console.prototype.doEval = function() {
         this.tokens.consume();
         this.vt100("adding node "+host+":"+port+"...");
         this.requestWithParams("/network_add/", { host:host, port:port, format:'text' } );
+      } else if (token == "ADDFAST") {
+        this.tokens.consume();
+        var host = this.tokens.nextToken();
+        if (host == undefined) {
+          this.generateSubcommandError("NETWORK");
+          return;
+        } 
+        this.tokens.consume();
+        var port = this.tokens.nextToken();
+        if (port == undefined) {
+          this.generateSubcommandError("NETWORK");
+          return;
+        }
+        this.tokens.consume();
+        this.vt100("adding node "+host+":"+port+"...");
+        this.requestWithParams("/network_addfast/", { host:host, port:port, format:'text' } );
       } else if (token == "REMOVE") {
         this.tokens.consume();
         var host = this.tokens.nextToken();

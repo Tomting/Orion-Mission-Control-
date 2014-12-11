@@ -2,8 +2,10 @@
 <html>
     <head>
     	<title>ORION MC</title>
-    	<link rel="stylesheet" href="codebase/webix.css" type="text/css"> 
-    	<script src="codebase/webix_debug.js" type="text/javascript"></script>  
+    	<!-- <link rel="stylesheet" href="codebase/webix.css" type="text/css"> -->
+    	<!-- <script src="codebase/webix_debug.js" type="text/javascript"></script> --> 
+    	<link rel="stylesheet" href="skins/dark/webix.css" type="text/css"> 
+    	<script src="codebase/webix_debug.js" type="text/javascript"></script> 
     	<script src="js/find-in-json.js" type="text/javascript"></script>
 
 		<!-- You can get these files from https://github.com/webix-hub/components -->
@@ -17,6 +19,7 @@
 		<script src="js/codemirror/codemirror/mode/mysql/mysql.js"></script>
 		<link href="js/codemirror/codemirror/lib/codemirror.css" rel="stylesheet" type="text/css">
 		<link href="js/codemirror/codemirror/theme/neat.css" rel="stylesheet" type="text/css">
+		<link href="js/codemirror/codemirror/theme/night.css" rel="stylesheet" type="text/css">
 
 		<!-- just gage -->
 		<script src="js/justgage/justgage/raphael.2.1.0.min.js" type="text/javascript" ></script>
@@ -26,6 +29,13 @@
 		<!-- d3 -->
 		<script src="js/d3/d3/d3.v3.min.js" type="text/javascript"></script>
 		<script src="js/d3/d3.js" type="text/javascript"></script>
+
+
+		<!-- terminal -->
+		<script src="js/terminal/terminal/termlib.js" type="text/javascript"></script>
+		<script src="js/terminal/terminal/termlib_parser.js" type="text/javascript"></script>
+		<script src="js/terminal/terminal.js" type="text/javascript"></script>
+		<link rel="stylesheet" href="/js/terminal/terminal/term_styles.css" type="text/css">
 
 		<!-- console
 		<script src="js/console/console/vt100.js" type="text/javascript"></script>
@@ -142,27 +152,61 @@
 			}
 			/*********/
 
+			/**********/
+			function showProgress(delay) {
+		        $$("app").disable();
+		        $$("app").showProgress({
+		            type:"icon",
+		            delay:delay
+		        });
+		        setTimeout(function(){
+		            $$("myform").parse(small_film_set[2]);
+		            $$("app").enable();
+		            $$("app").hideProgress();
+		        }, delay);			
+		    }
+			function loadjscssfile(filename, filetype){
+				if (filetype=="js"){ //if filename is a external JavaScript file
+					var fileref=document.createElement('script')
+					fileref.setAttribute("type","text/javascript")
+					fileref.setAttribute("src", filename)
+			 	} else if (filetype=="css"){ //if filename is an external CSS file
+			 		var fileref=document.createElement("link")
+			 		fileref.setAttribute("rel", "stylesheet")
+			 		fileref.setAttribute("type", "text/css")
+			 		fileref.setAttribute("href", filename)
+			 	}
+			 	if (typeof fileref!="undefined")
+			 		document.getElementsByTagName("head")[0].appendChild(fileref)
+			 }
+			/**********/
+
         	var menu = {
 				rows: [
 					{ type:"header", template:"Menu"},
 					{ view:"list", id:"sidemenu", width:230, select: true, scroll:false, layout:"y",
 						 data:[
-							{id:"cfg_console", title:"Console", src:"/js/img/terminal.png" },
-							{id:"cfg_sqleditor", title:"OSQL Editor", src:"/js/img/editor.png" },
-							{id:"cfg_nodestats", title:"Statistics", src:"/js/img/stats.png" },
-							{id:"cfg_network", title:"Network", src:"/js/img/network.png" },
+							//{id:"cfg_console", title:"Console", src:"/js/img/terminal.png" },
+							{id:"cfg_console", title:"Console", src:"fa-terminal" },
+							{id:"cfg_sqleditor", title:"OSQL Editor", src:"fa-edit" },
+							{id:"cfg_nodestats", title:"Statistics", src:"fa-line-chart" },
+							{id:"cfg_network", title:"Network", src:"fa-wifi" },
 						 ],	
 						 on: {
 							onItemClick:function(id) {
 								$$("main").showBatch(id);
 								$$("header").setValue(this.getItem(id).title);
+								$$('terminal-container').lockKeyboard();
 								if (id == 'cfg_network') {
 									$$('d3_network').initialize();
+								} else if (id == 'cfg_console') {
+									$$('terminal-container').unlockKeyboard();
 								}
 							}
 						},
 						template:function(obj){ //obj is a data record object
-							return '<div class="webix_strong"><img width="24" height="24" valign="middle" style="margin-right:10px;" src="'+obj.src+'"/>'+obj.title+'</div>'
+							//return '<div><img width="24" height="24" valign="middle" style="margin-right:10px;" src="'+obj.src+'"/>'+obj.title+'</div>'
+							return '<div><i class="fa '+obj.src+'"></i> '+obj.title+'</div>';
 						}
 					}
 				]				
@@ -172,15 +216,54 @@
         	 *	C O N S O L E  
         	 **/
 
+			var console_cells =[
+				{
+					header:"Terminal 1",
+					body:{ 
+						view:"terminal", id:"terminal-container",
+					}
+				},
+				{
+					header:"Terminal 2",
+					close:true,
+					body:{ 
+						view:"terminal", id:"terminal-container2"
+					}
+				},
+				{
+					header:"Terminal 3",
+					close:true,
+					body:{ 
+						view:"terminal", id:"terminal-container3"
+					}
+				},
+				{
+					header:"Terminal 4",
+					close:true,
+					body:{ 
+						view:"terminal", id:"terminal-container4"
+					}
+				},
+			];        	 
+
         	var view_console = {
-				batch:"cfg_console",
+				batch:"cfg_console", 
+				rows:[{
+					view:"tabview",
+					id:"tabview1",
+					tabbar:{ optionWidth:200, on:{ "onAfterTabClick":function(id, e){ $$(id).setFocus(); } } },
+					animate:false,
+					cells:console_cells,
+				}]
+
 				/*
 				rows:[{ 
-					view:"console", id:"console-container"
-				}]*/
+					view:"terminal", id:"terminal-container"
+				}]
 				rows:[
 					{ view:"iframe", id:'frame-body-console1', batch:"console1", src:"console/demo.html"},
 				]
+				*/
         	};
 
         	/* 
@@ -233,7 +316,7 @@
         	 					view:"codemirror-editor",
         	 					id:"sql_editor",
         	 					mode:"mysql",
-        	 					theme:"neat",
+        	 					theme:"night",
         	 					value:"select from pting",
         	 					height:100
         	 				},
@@ -267,21 +350,27 @@
 						value:25,
 						id:"gage1",
 						title:"Virtual Memory",
-						height:150
+						height:150,
+						labelFontColor:"#666",
+						valueFontColor:"#888",
 					},
 					{
 						view:"justgage-chart",
 						value:25,
 						id:"gage2",
 						title:"Swap Memory",
-						height:150
+						height:150,
+						labelFontColor:"#666",
+						valueFontColor:"#888",
 					},
 					{
 						view:"justgage-chart",
 						value:25,
 						id:"gage3",
 						title:"Total Memory",
-						height:150
+						height:150,
+						labelFontColor:"#666",
+						valueFontColor:"#888",
 					},
 					]
 			    },
@@ -385,6 +474,7 @@
 
 			function add_node() {
 				webix.ui({ view:"window", id:"win_add_node", width:640, height:480, position:"center", head:"Add Orion Node", body:view_dialog_add_node, modal:true }).show();
+				webix.UIManager.setFocus($$('add_node_element_host'));				
 			}
 
 			function zoom_in() {
@@ -1109,9 +1199,9 @@
 							view:"form", 
 							width:400,
 							elements:[
-								{ view:"text", id:"host", label:"Host" },
-								{ view:"text", id:"port", label:"Port", value:"9011" },
-								{ view:"text", id:"namespace", label:"Domain", value:"DEFAULT" },
+								{ view:"text", id:"change_server_element_host", label:"Host" },
+								{ view:"text", id:"change_server_element_port", label:"Port", value:"9011" },
+								{ view:"text", id:"change_server_element_namespace", label:"Domain", value:"DEFAULT" },
 								{ margin:5, 
 									cols:[
 										{ view:"button", value:"Change" , type:"form", click:onChangeServer },
@@ -1125,7 +1215,8 @@
 			};
 
         	function form_change_server() {
-        		$$("ui_change_server").show();        	
+        		$$("ui_change_server").show(); 
+				webix.UIManager.setFocus($$('change_server_element_host'));				
         	}
 
 			var popup_prefs = {
@@ -1137,8 +1228,8 @@
 					template:"#lang#",
 					data:[
 						{id:1, lang:"Change Server..." },
-						{id:2, lang:"Config 2" },
-						{id:3, lang:"Config 3"},
+						{id:2, lang:"Dark Theme" },
+						{id:3, lang:"Light Theme"},
 						{id:4, lang:"Config 4"}
 					],
 					on:{
@@ -1147,13 +1238,20 @@
 						},
 						"onItemClick":function(id){
 							$$("popup_prefs").hide();
-							form_change_server();
+							if (id == 1) {
+								form_change_server();
+							} else if (id == 2) {
+								loadjscssfile("/skins/dark/webix.css","css");
+							} else if (id == 3) {
+								loadjscssfile("/codebase/webix.css","css");
+							}
 						}
 					}
 				}
 			};
 
 			var ui = {
+				id:"app",
 				rows: [
 					{view:"toolbar", height:50, elements:[
 						{view:"label", label:"<div style = 'font-size:18px; margin-right:5px; color:#fff;'>ORION Mission Control</div>" },
@@ -1169,6 +1267,8 @@
 				webix.ui(ui);
 				webix.ui(popup_prefs);
 				webix.ui(ui_change_server);
+				webix.extend($$("app"), webix.ProgressBar);
+
 				$$("sidemenu").select("cfg_sqleditor");
 				$$("sidemenu").callEvent("onItemClick", ["cfg_sqleditor"]);
 
