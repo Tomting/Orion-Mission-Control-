@@ -75,6 +75,12 @@ webix.protoUI({
 		return this.editor?this.editor.getValue():this.config.value;
 	},
 
+	setOption:function(key, value){
+		if (this.editor){
+			this.editor.setOption(key,value);
+		}
+	},
+
 	focus:function(){
 		this._focus_await = true;
 		if (this.editor)

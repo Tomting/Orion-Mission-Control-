@@ -73,8 +73,8 @@ RANDOM = 20
 
 _re = re.compile("\033\[[0-9;]*m")
 
-def _get_size(text):
-    lines = text.split("\r\n")
+def _get_size(text, carriage):
+    lines = text.split(carriage)
     height = len(lines)
     width = max([_str_block_width(line) for line in lines])
     return (width, height)
@@ -124,7 +124,7 @@ class PrettyTable(object):
             self._widths = []
 
         # Options
-        self._options = "start end fields header border sortby reversesort sort_key attributes format hrules vrules".split()
+        self._options = "start end fields header border sortby reversesort sort_key attributes format hrules vrules carriage".split()
         self._options.extend("int_format float_format padding_width left_padding_width right_padding_width".split())
         self._options.extend("vertical_char horizontal_char junction_char header_style valign xhtml print_empty".split())
         for option in self._options:
@@ -173,6 +173,8 @@ class PrettyTable(object):
         self._format = kwargs["format"] or False
         self._xhtml = kwargs["xhtml"] or False
         self._attributes = kwargs["attributes"] or {}
+
+        self._carriage = kwargs["carriage"] or "\r\n";
    
     def _unicode(self, value):
         if not isinstance(value, basestring):
@@ -891,16 +893,16 @@ class PrettyTable(object):
 
     def _compute_widths(self, rows, options):
         if options["header"]:
-            widths = [_get_size(field)[0] for field in self._field_names]
+            widths = [_get_size(field, self._carriage)[0] for field in self._field_names]
         else:
             widths = len(self.field_names) * [0]
         for row in rows:
             for index, value in enumerate(row):
                 fieldname = self.field_names[index]
                 if fieldname in self.max_width:
-                    widths[index] = max(widths[index], min(_get_size(value)[0], self.max_width[fieldname]))
+                    widths[index] = max(widths[index], min(_get_size(value, self._carriage)[0], self.max_width[fieldname]))
                 else:
-                    widths[index] = max(widths[index], _get_size(value)[0])
+                    widths[index] = max(widths[index], _get_size(value, self._carriage)[0])
         self._widths = widths
 
     def _get_padding_widths(self, options):
@@ -1004,7 +1006,7 @@ class PrettyTable(object):
         if options["border"] and options["hrules"] == FRAME:
             lines.append(self._hrule)
         
-        return self._unicode("\r\n").join(lines)
+        return self._unicode(self._carriage).join(lines)
 
     def _stringify_hrule(self, options):
 
@@ -1039,7 +1041,7 @@ class PrettyTable(object):
         if options["border"]:
             if options["hrules"] in (ALL, FRAME):
                 bits.append(self._hrule)
-                bits.append("\r\n")
+                bits.append(self._carriage)
             if options["vrules"] in (ALL, FRAME):
                 bits.append(options["vertical_char"])
             else:
@@ -1075,7 +1077,7 @@ class PrettyTable(object):
             bits.pop()
             bits.append(options["vertical_char"])
         if options["border"] and options["hrules"] != NONE:
-            bits.append("\r\n")
+            bits.append(self._carriage)
             bits.append(self._hrule)
         return "".join(bits)
 
@@ -1083,19 +1085,19 @@ class PrettyTable(object):
        
         for index, field, value, width, in zip(range(0,len(row)), self._field_names, row, self._widths):
             # Enforce max widths
-            lines = value.split("\r\n")
+            lines = value.split(self._carriage)
             new_lines = []
             for line in lines: 
                 if _str_block_width(line) > width:
                     line = textwrap.fill(line, width)
                 new_lines.append(line)
             lines = new_lines
-            value = "\r\n".join(lines)
+            value = self._carriage.join(lines)
             row[index] = value
 
         row_height = 0
         for c in row:
-            h = _get_size(c)[1]
+            h = _get_size(c, self._carriage)[1]
             if h > row_height:
                 row_height = h
 
@@ -1112,7 +1114,7 @@ class PrettyTable(object):
         for field, value, width, in zip(self._field_names, row, self._widths):
 
             valign = self._valign[field]
-            lines = value.split("\r\n")
+            lines = value.split(self._carriage)
             dHeight = row_height - len(lines)
             if dHeight:
                 if valign == "m":
@@ -1143,13 +1145,13 @@ class PrettyTable(object):
                 bits[y].append(options["vertical_char"])
         
         if options["border"] and options["hrules"]== ALL:
-            bits[row_height-1].append("\r\n")
+            bits[row_height-1].append(self._carriage)
             bits[row_height-1].append(self._hrule)
 
         for y in range(0, row_height):
             bits[y] = "".join(bits[y])
 
-        return "\r\n".join(bits)
+        return self._carriage.join(bits)
 
     ##############################
     # HTML STRING METHODS        #
@@ -1209,7 +1211,7 @@ class PrettyTable(object):
             for field in self._field_names:
                 if options["fields"] and field not in options["fields"]:
                     continue
-                lines.append("        <th>%s</th>" % escape(field).replace("\r\n", linebreak))
+                lines.append("        <th>%s</th>" % escape(field).replace(self._carriage, linebreak))
             lines.append("    </tr>")
 
         # Data
@@ -1220,12 +1222,12 @@ class PrettyTable(object):
             for field, datum in zip(self._field_names, row):
                 if options["fields"] and field not in options["fields"]:
                     continue
-                lines.append("        <td>%s</td>" % escape(datum).replace("\r\n", linebreak))
+                lines.append("        <td>%s</td>" % escape(datum).replace(self._carriage, linebreak))
             lines.append("    </tr>")
 
         lines.append("</table>")
 
-        return self._unicode("\r\n").join(lines)
+        return self._unicode(self._carriage).join(lines)
 
     def _get_formatted_html_string(self, options):
 
@@ -1265,7 +1267,7 @@ class PrettyTable(object):
             for field in self._field_names:
                 if options["fields"] and field not in options["fields"]:
                     continue
-                lines.append("        <th style=\"padding-left: %dem; padding-right: %dem; text-align: center\">%s</th>" % (lpad, rpad, escape(field).replace("\r\n", linebreak)))
+                lines.append("        <th style=\"padding-left: %dem; padding-right: %dem; text-align: center\">%s</th>" % (lpad, rpad, escape(field).replace(self._carriage, linebreak)))
             lines.append("    </tr>")
 
         # Data
@@ -1281,11 +1283,11 @@ class PrettyTable(object):
             for field, datum, align, valign in zip(self._field_names, row, aligns, valigns):
                 if options["fields"] and field not in options["fields"]:
                     continue
-                lines.append("        <td style=\"padding-left: %dem; padding-right: %dem; text-align: %s; vertical-align: %s\">%s</td>" % (lpad, rpad, align, valign, escape(datum).replace("\r\n", linebreak)))
+                lines.append("        <td style=\"padding-left: %dem; padding-right: %dem; text-align: %s; vertical-align: %s\">%s</td>" % (lpad, rpad, align, valign, escape(datum).replace(self._carriage, linebreak)))
             lines.append("    </tr>")
         lines.append("</table>")
 
-        return self._unicode("\r\n").join(lines)
+        return self._unicode(self._carriage).join(lines)
 
 ##############################
 # UNICODE WIDTH FUNCTIONS    #
