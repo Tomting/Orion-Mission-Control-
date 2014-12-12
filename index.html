@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
     <head>
-    	<title>ORION MC</title>
+    	<title>ORION Mission Control</title>
     	<!-- <link rel="stylesheet" href="codebase/webix.css" type="text/css"> -->
     	<!-- <script src="codebase/webix_debug.js" type="text/javascript"></script> --> 
     	<link rel="stylesheet" href="skins/dark/webix.css" type="text/css"> 
@@ -67,7 +67,7 @@
 				webix.message({type:"error", text:message, expire:1000 });
 			}
 			function show_message(message){
-				webix.message({type:"success", text:message, expire:1000 });
+				webix.message({text:message, expire:1000 });
 			}
 
 			/* WEBSOCKET */ 
@@ -1122,12 +1122,21 @@
 
         	// WINDOW - Change Server
         	function onChangeServer() {
-				webix.ajax().post("/change_server/", { format:"json" }, { 
+        		var host = $$("change_server_element_host").getValue().toUpperCase();;
+        		var port = $$("change_server_element_port").getValue().toUpperCase();;
+        		var namespace = $$("change_server_element_namespace").getValue().toUpperCase();;
+				webix.ajax().post("/connect/", { host:host, port:port, namespace:namespace, format:"json" }, { 
 					success:function(text, xml, xhr) {
+						/*
 						var json = webix.DataDriver.json.toObject(text);
+						alert(json);
 						$$('label_orion_address').setValue("ORION:"+json.orionserver+":"+json.orionport+":DEFAULT");
 						// start connection with the websocket server
 						doConnect(json.wsserver, json.wsport);
+						*/
+						$$('label_orion_address').setValue("ORION:"+host+":"+port+":"+namespace);
+						show_message(text);
+						$$('ui_change_server').hide();
 					}, 
 					error:function(text, xml, hxr) {
 						show_error(text);
@@ -1249,13 +1258,13 @@
 						show_error(text);
 				}});  
 
-				/*
 				// TODO: this is not more needed if websocket works...
+				/*
 				setInterval(function(){
-					var value = Math.floor(Math.random()*100)+1;
+					var value = Math.floor(Math.random()*25)+1;
 					$$('gage1').setValue(value);
-					$$('gage2').setValue(100-value);
-					$$('gage3').setValue(100-value-10);
+					$$('gage2').setValue(value+2);
+					$$('gage3').setValue(value+value+2);
 				}, 2000);
 				*/
 			});

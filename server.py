@@ -424,9 +424,15 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			fmt = form['format'].value
 			host = form['host'].value
 			port = form['port'].value
+			if "namespace" in form: 
+				namespace = form['namespace'].value
+			else:
+				namespace = None
 			so = self.Session()
 			so.orion_host = host
 			so.orion_port = int(port)
+			if namespace is not None:
+				so.orion_ns = namespace
 			self._send_response(200, "text/plain", ("connected to %s:%d" % (so.orion_host, so.orion_port)))
 
 		elif ( self.path == '/change_namespace/'):

@@ -61,7 +61,7 @@ webix.protoUI({
 	  		'LEAVE',
 	  	];
 	  	var helpPageConnect = [
-	  		'USAGE: CONNECT %c(blue)<host> <port>%c(default)   connect to orion db',
+	  		'USAGE: CONNECT %c(blue)<host> <port> [namespace]%c(default)   connect to orion db',
 	  	];
 	  	var helpPageNamespace = [
 	  		'USAGE: NAMESPACE %c(blue)<name>%c(default)   change the current working namespace',
@@ -83,6 +83,7 @@ webix.protoUI({
             crsrBlinkMode:false,
             frameColor:"#00000000",
             frameWidth:0,
+            closeOnESC:false,
             handler:function() { 
             	function request(obj,url,data) {
 			    	obj.send({
@@ -258,8 +259,13 @@ webix.protoUI({
 			    else if (command == "connect") {
 					host = this.argv[this.argc++];
 			    	port = this.argv[this.argc++];
+			    	namespace = this.argv[this.argc++];
 			    	if ((host == undefined) || (port == undefined)) { this.write(errorParsing); this.prompt(); return; };
-			    	request(this,"/connect/",{ host:host, port:port, format:"text" });
+			    	if (namespace == undefined) {
+			    		request(this,"/connect/",{ host:host, port:port, format:"text" });
+			    	} else {
+			    		request(this,"/connect/",{ host:host, port:port, namespace:namespace, format:"text" });
+			    	}
 			    }
 			    else if ((command == "namespace")||(command == "ns")) {
 					namespace = this.argv[this.argc++];
