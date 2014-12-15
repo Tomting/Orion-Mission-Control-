@@ -192,9 +192,10 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		datacenter['children'].append(node)
 		return node
 
-	def _add_graph_address(self, node, name):
+	def _add_graph_address(self, node, name, accrual):
 		address = {}
 		address['name'] = name
+		address['accrual'] = accrual
 		node['children'].append(address)
 		return address
 
@@ -647,7 +648,7 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 					datacenter[item.sVdatacenterid] = self._add_graph_datacenter(item.sVdatacenterid)
 				if item.sVnodeid not in node: 
 					node[item.sVnodeid] = self._add_graph_node(datacenter[item.sVdatacenterid], item.sVnodeid)
-				self._add_graph_address(node[item.sVnodeid], "%s %d [%s, %f]" % (item.sVaddress, item.iVport,iEstategossipnode._VALUES_TO_NAMES[item.iVstate], item.dVphiaccrual))
+				self._add_graph_address(node[item.sVnodeid], "%s %d [%s, %f]" % (item.sVaddress, item.iVport,iEstategossipnode._VALUES_TO_NAMES[item.iVstate], item.dVphiaccrual), item.dVphiaccrual)
 
 			for item in datacenter:
 				graph['children'].append(datacenter[item])

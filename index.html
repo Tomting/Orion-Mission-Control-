@@ -383,7 +383,19 @@
 				$$('win_add_node').close();
 			 }
 
-			 function refreshCloudGraph() {
+			function refreshNetworkGraph() {
+			 	webix.ajax().post("/update_graph/", { format:"json" }, { 
+			 		success:function(text, xml, xhr) {
+			 			var json = webix.DataDriver.json.toObject(text);
+			 			$$("d3_network").setData(json)
+			 			$$("d3_network").refresh()
+					}, 
+					error:function(text, xml, hxr) {
+						show_error(text);
+				}});  
+			 }
+
+			function refreshCloudGraph() {
 			 	webix.ajax().post("/update_graph/", { format:"json" }, { 
 			 		success:function(text, xml, xhr) {
 			 			var json = webix.DataDriver.json.toObject(text);
@@ -397,7 +409,7 @@
 
 			function onRefreshGraph() {
 				if ($$("filter_graph").getValue() == 0) {
-					not_yet();
+					refreshNetworkGraph();
 				} else {
 					refreshCloudGraph();
 				}
@@ -474,11 +486,12 @@
 					]},
 					{ view:"multiview",
 						id:"network_multiview",
-						animate:{type:"flip", subtype:"vertical"},
 						cells:[
 					{ view:"d3-chart",
 						id:"d3_network",
 						batch:"d3_network",
+						url:"post->/update_graph/",
+						//url:"/js/d3/data/flare2.json",
 						resize:true,
 						ready:function(){
 							/* Circle Layout Formula 
@@ -491,7 +504,7 @@
 							var cy = height / 2;
 							var r = height / 2;
 							var r_external = r + 50;
-							var numElements = 20; 
+							var numElements = this.data.children[0].children.length; 
 							var posDegrees = 360 / numElements;
 							var view_cx = 0; 
 							var view_cy = 0;
@@ -509,19 +522,24 @@
 								.attr("x",mainCircle.attr("cx"))
 								.attr("y",mainCircle.attr("cy"))
 								.attr("text-anchor", "middle")
-								.text("DEFAULTDC")
+								.text(this.data.children[0].name);
 
-							var strIP = "10.249.18.";
 							var indexDegrees = posDegrees;
 							for (i=0; i<numElements; i++) {
 								var p0 = cx+r*Math.cos(indexDegrees * 0.0174532925);
 								var p1 = cy+r*Math.sin(indexDegrees * 0.0174532925);
 								var p2 = cx+r_external*Math.cos(indexDegrees * 0.0174532925);
 								var p3 = cy+r_external*Math.sin(indexDegrees * 0.0174532925);
+								var name = this.data.children[0].children[i].name;
+								var accrual = this.data.children[0].children[i].children[0].accrual;
 
-								drawPoint(svg, p0, p1);
-								drawText(svg, p2, p3, indexDegrees, strIP+i);
+								drawPoint(svg, p0, p1, name, accrual);
+								drawText(svg, p2, p3, indexDegrees, name);
 								indexDegrees += posDegrees;
+
+								if (accrual <= 0.5) {
+									pulse_on(name);
+								}
 							}
 
 							function transform(p) {
@@ -530,22 +548,27 @@
 								return "translate(" + (center[0] - p[0] * k) + "," + (center[1] - p[1] * k) + ")scale(" + k + ")";
 							}
 
-							function drawPoint(svg, p0, p1) {
-								svg.append("svg:circle")
+							function drawPoint(svg, p0, p1, name, accrual) {
+								svg.append("circle")
+									.attr("id", name)	// TODO: if "name" contains spaces... works ? 
+									.attr("accrual", accrual)
 									.attr("cx", p0)
 									.attr("cy", p1)
 									.attr("r", 8)
 									.attr("class", "network_node")
+									.attr("fill", function(d){ if (accrual <= 0.5) return "red"; else return "green"; })
 									.on("mouseover", function(d) {
 										d3.select(this).style("fill","blue");
 									}).on("mouseout", function(d){
-										d3.select(this).style("fill","green");
+										if (d3.select(this).attr("accrual") <= 0.5) {
+											d3.select(this).style("fill","red");
+										} else {
+											d3.select(this).style("fill","green");
+										}
 									}).on("click", function(d) {
 										var circle = d3.select(this);
 										var start = [ cx, cy, 60];
 										var end = [ parseFloat(circle.attr("cx")), parseFloat(circle.attr("cy")), 120];
-										//console.log(start);
-										//console.log(end);
 										var interpolator = d3.interpolateZoom(start, end);
 										svg.attr("transform", transform(start)).transition().delay(250).duration(interpolator.duration * 2).attrTween("transform", function() { return function(t) { return transform(interpolator(t)); }; });
 								});							
@@ -556,6 +579,20 @@
 									.attr("class","network_node_text")
 									.attr("text-anchor", "middle")
 									.attr("transform", "translate("+p0+","+p1+") rotate("+degrees+")").text(text);						
+							}
+
+							function pulse_on(name) {
+								var circle = svg.select("#"+name);
+								(function repeat() {
+									circle = circle.transition()
+										.duration(1000)
+										.attr("r", 8)
+										.transition()
+										.duration(1000)
+										.attr("r", 12)
+										.ease('sine')
+										.each("end", repeat);
+								})();
 							}
 
 							// function for handling zoom event
@@ -574,71 +611,64 @@
 							url:"post->/update_graph/",
 							ready:function(){
 
-    // Calculate total nodes, max label length
-    var totalNodes = 0;
-    var maxLabelLength = 0;
-    // variables for drag/drop
-    var selectedNode = null;
-    var draggingNode = null;
-    // panning variables
-    var panSpeed = 200;
-    var panBoundary = 20; // Within 20px from edges will pan when dragging.
-    // Misc. variables
-    var i = 0;
-    var duration = 750;
-    var root;
+								// Calculate total nodes, max label length
+								var totalNodes = 0;
+								var maxLabelLength = 0;
+								// variables for drag/drop
+								var selectedNode = null;
+								var draggingNode = null;
+								// panning variables
+								var panSpeed = 200;
+								var panBoundary = 20; // Within 20px from edges will pan when dragging.
+								// Misc. variables
+								var i = 0;
+								var duration = 750;
+								var root;
 
-    // size of the diagram
-    var viewerWidth = this.$width;
-    var viewerHeight = this.$height;
+								// size of the diagram
+								var viewerWidth = this.$width;
+								var viewerHeight = this.$height;
 
-    var tree = d3.layout.tree()
-        .size([viewerHeight, viewerWidth]);
+								var tree = d3.layout.tree().size([viewerHeight, viewerWidth]);
 
-    // define a d3 diagonal projection for use by the node paths later on.
-    var diagonal = d3.svg.diagonal()
-        .projection(function(d) {
-            return [d.y, d.x];
-        });
+								// define a d3 diagonal projection for use by the node paths later on.
+								var diagonal = d3.svg.diagonal().projection(function(d) {
+									return [d.y, d.x];
+								});
 
-    // A recursive helper function for performing some setup by walking through all nodes
+								// A recursive helper function for performing some setup by walking through all nodes
+								function visit(parent, visitFn, childrenFn) {
+									if (!parent) return;
 
-    function visit(parent, visitFn, childrenFn) {
-        if (!parent) return;
+									visitFn(parent);
 
-        visitFn(parent);
+									var children = childrenFn(parent);
+									if (children) {
+										var count = children.length;
+										for (var i = 0; i < count; i++) {
+											visit(children[i], visitFn, childrenFn);
+										}
+									}
+								}
 
-        var children = childrenFn(parent);
-        if (children) {
-            var count = children.length;
-            for (var i = 0; i < count; i++) {
-                visit(children[i], visitFn, childrenFn);
-            }
-        }
-    }
+								// Call visit function to establish maxLabelLength
+								visit(this.data, function(d) {
+									totalNodes++;
+									maxLabelLength = Math.max(d.name.length, maxLabelLength);
+								}, function(d) {
+									return d.children && d.children.length > 0 ? d.children : null;
+								});
 
-    // Call visit function to establish maxLabelLength
-    visit(this.data, function(d) {
-        totalNodes++;
-        maxLabelLength = Math.max(d.name.length, maxLabelLength);
+								// sort the tree according to the node names
+								function sortTree() {
+									tree.sort(function(a, b) {
+										return b.name.toLowerCase() < a.name.toLowerCase() ? 1 : -1;
+									});
+								}
+								// Sort the tree initially incase the JSON isn't in a sorted order.
+								sortTree();
 
-    }, function(d) {
-        return d.children && d.children.length > 0 ? d.children : null;
-    });
-
-
-    // sort the tree according to the node names
-
-    function sortTree() {
-        tree.sort(function(a, b) {
-            return b.name.toLowerCase() < a.name.toLowerCase() ? 1 : -1;
-        });
-    }
-    // Sort the tree initially incase the JSON isn't in a sorted order.
-    sortTree();
-
-    // TODO: Pan function, can be better implemented.
-
+								// TODO: Pan function, can be better implemented.
     function pan(domNode, direction) {
         var speed = panSpeed;
         if (panTimer) {

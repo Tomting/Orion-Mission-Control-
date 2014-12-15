@@ -1,0 +1,15 @@
+.term {
+	font-family: courier,fixed,swiss,sans-serif;
+	font-size: 14px;
+	color: #000;
+	background: #fff;
+}
+
+.term.td {
+	background-color: rgb(255,255,0);
+}
+
+.termReverse {
+	color: #111111;
+	background: #33d011;
+}
