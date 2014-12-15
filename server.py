@@ -643,21 +643,22 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			graph['name'] = "ORION"
 			graph['children'] = [] 
 
-			for item in response.cVgossipelement:
-				if item.sVdatacenterid not in datacenter:
-					datacenter[item.sVdatacenterid] = self._add_graph_datacenter(item.sVdatacenterid)
-				if item.sVnodeid not in node: 
-					node[item.sVnodeid] = self._add_graph_node(datacenter[item.sVdatacenterid], item.sVnodeid)
-				self._add_graph_address(node[item.sVnodeid], "%s %d [%s, %f]" % (item.sVaddress, item.iVport,iEstategossipnode._VALUES_TO_NAMES[item.iVstate], item.dVphiaccrual), item.dVphiaccrual)
+			if response is not None:
+				for item in response.cVgossipelement:
+					if item.sVdatacenterid not in datacenter:
+						datacenter[item.sVdatacenterid] = self._add_graph_datacenter(item.sVdatacenterid)
+					if item.sVnodeid not in node: 
+						node[item.sVnodeid] = self._add_graph_node(datacenter[item.sVdatacenterid], item.sVnodeid)
+					self._add_graph_address(node[item.sVnodeid], "%s %d [%s, %f]" % (item.sVaddress, item.iVport,iEstategossipnode._VALUES_TO_NAMES[item.iVstate], item.dVphiaccrual), item.dVphiaccrual)
 
-			for item in datacenter:
-				graph['children'].append(datacenter[item])
+				for item in datacenter:
+					graph['children'].append(datacenter[item])
 
-			self.send_response(200)
-			self.send_header("Content-type", "text/json")
-			self._attach_session_data()
-			self.end_headers()
-			self.wfile.write(json.dumps(graph))
+				self.send_response(200)
+				self.send_header("Content-type", "text/json")
+				self._attach_session_data()
+				self.end_headers()
+				self.wfile.write(json.dumps(graph))
 
 		elif ( self.path == '/gossiper/'):
 			form = cgi.FieldStorage(
@@ -751,7 +752,7 @@ class TopDataElement(object):
 class OrionStat(WebSocket):
 	started = False
 	topMap = dict()
-	lastTimestamp = 0
+	lastTimestamp = float(0.0)
 
 	'''
 	def _getSizedTime(value):
@@ -785,38 +786,29 @@ class OrionStat(WebSocket):
 
 			rows = []
 			diffTimestamp = ret.cVreturntop.iVtimestamp - self.lastTimestamp;
+			self.lastTimestamp = ret.cVreturntop.iVtimestamp;
 			for t in ret.cVreturntop.cVtopelement:
 				if t.sVtablet not in self.topMap:
 					topDataObject = TopDataElement()
-					topDataObject.readDiffTime = 0
-					topDataObject.writeDiffTime = 0
-					topDataObject.orderTime = 0
-					topDataObject.readTime = 0
-					topDataObject.writeTime = 0	
-					topDataObject.readDiffCountL2 = 0
-					topDataObject.writeDiffCountL2 = 0					
-					topDataObject.readCountL2 = 0
-					topDataObject.writeCountL2 = 0
-					topDataObject.readDiffCountL1 = 0
-					topDataObject.writeDiffCountL1 = 0						
-					topDataObject.readCountL1 = 0
-					topDataObject.writeCountL1 = 0
+					topDataObject.readDiffTime = float(0.0)
+					topDataObject.writeDiffTime = float(0.0)
+					topDataObject.orderTime = float(0.0)
+					topDataObject.readTime = float(0.0)
+					topDataObject.writeTime = float(0.0)
+					topDataObject.readDiffCountL2 = float(0.0)
+					topDataObject.writeDiffCountL2 = float(0.0)					
+					topDataObject.readCountL2 = float(0.0)
+					topDataObject.writeCountL2 = float(0.0)
+					topDataObject.readDiffCountL1 = float(0.0)
+					topDataObject.writeDiffCountL1 = float(0.0)						
+					topDataObject.readCountL1 = float(0.0)
+					topDataObject.writeCountL1 = float(0.0)
 					self.topMap[t.sVtablet] = topDataObject
 
 				topData = self.topMap[t.sVtablet]
 				topData.readDiffTime = t.iVreadtime - topData.readTime
 				topData.writeDiffTime = t.iVwritetime - topData.writeTime;
 				topData.orderTime = topData.readDiffTime + topData.writeDiffTime;
-
-				'''
-				print "t.iVreadtime   %d" % t.iVreadtime
-				print "t.iVwritetime  %d" % t.iVwritetime
-				print "topData.readTime %d" % topData.readTime
-				print "topData.writeTime %d" % topData.writeTime
-				print "topData.readDiffTime %d" % topData.readDiffTime
-				print "topData.writeDiffTime %d" % topData.writeDiffTime
-				print "======"
-				'''
 
 				topData.readTime = t.iVreadtime;
 				topData.writeTime = t.iVwritetime;	
@@ -832,25 +824,41 @@ class OrionStat(WebSocket):
 				diffTime = diffTimestamp / 1000
 				tmp = {}
 				tmp['NAME'] = t.sVtablet
-				tmp['TOTAL'] = topData.orderTime
-				if (diffTime == 0):
-					tmp['LOAD'] = 0
+
+				if (topData.orderTime == 0.0):
+					tmp['TOTAL'] = "%.2f" % (float(0.0))
+				else:
+					tmp['TOTAL'] = "%.2f" % (float(topData.orderTime) / 1000)
+
+				if (diffTime == 0.0):
+					tmp['LOAD'] = "%.2f" % (float(0.0))
 				else:
 					#percentage = '{0:.3g}'.format(100 * topData.orderTime / diffTime)
 					percentage = 100 * topData.orderTime / diffTime
 					percentage_scaled = percentage * 10 / 100 
 					tmp['LOAD'] = '%d' % int(percentage_scaled) 
 
-				tmp['READ'] = topData.readDiffTime
+				if (topData.readDiffTime == 0.0):
+					tmp['READ'] = "%.2f" % (float(0.0))
+				else:
+					tmp['READ'] = "%.2f" % (float(topData.readDiffTime) / 1000)
+
 				if (topData.readDiffTime == 0):
 					tmp['READSPEED'] = 0
 				else:					
+					#tmp['READSPEED'] = 1000000 * topData.readDiffCountL1 / topData.readDiffTime
 					tmp['READSPEED'] = 1000000 * topData.readDiffCountL1 / topData.readDiffTime
-				
-				tmp['WRITE'] = topData.writeDiffTime
+
+				if (topData.writeDiffTime == 0.0):
+					tmp['WRITE'] = "%.2f" % (float(0.0))
+				else:
+					tmp['WRITE'] = "%.2f" % (float(topData.writeDiffTime) / 1000)
+
+
 				if (topData.writeDiffTime == 0):
 					tmp['WRITESPEED'] = 0
 				else:
+					#tmp['WRITESPEED'] = 1000000 * topData.writeDiffCountL1 / topData.writeDiffTime
 					tmp['WRITESPEED'] = 1000000 * topData.writeDiffCountL1 / topData.writeDiffTime
  				rows.append( tmp)
 			data = { "data":rows }
@@ -858,7 +866,7 @@ class OrionStat(WebSocket):
 	 		self.handleMessage("top", json.dumps(data));
 
 	 		if (self.started):
-				threading.Timer(5, self.orion_top).start()
+				threading.Timer(2, self.orion_top).start()
 		except Exception as n:
 			print n
 
