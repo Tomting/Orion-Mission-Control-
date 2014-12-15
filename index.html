@@ -535,11 +535,11 @@
 								var name = this.data.children[0].children[i].name;
 								var accrual = this.data.children[0].children[i].children[0].accrual;
 
-								drawPoint(svg, p0, p1, name, accrual);
+								drawPoint(svg, p0, p1, name, accrual, numElements);
 								drawText(svg, p2, p3, indexDegrees, name);
 								indexDegrees += posDegrees;
 
-								if (accrual <= 0.5) {
+								if ((accrual <= 0.5)&&(numElements > 1)) {
 									pulse_on(name);
 								}
 							}
@@ -554,15 +554,16 @@
 								svg.append("circle")
 									.attr("id", name)	// TODO: if "name" contains spaces... works ? 
 									.attr("accrual", accrual)
+									.attr("numElements", numElements)
 									.attr("cx", p0)
 									.attr("cy", p1)
 									.attr("r", 8)
 									.attr("class", "network_node")
-									.attr("fill", function(d){ if (accrual <= 0.5) return "red"; else return "green"; })
+									.attr("fill", function(d){ if ((accrual <= 0.5)&&(numElements>1)) return "red"; else return "green"; })
 									.on("mouseover", function(d) {
 										d3.select(this).style("fill","blue");
 									}).on("mouseout", function(d){
-										if (d3.select(this).attr("accrual") <= 0.5) {
+										if ((d3.select(this).attr("accrual") <= 0.5)&&(d3.select(this).attr("numElements") > 1)) {
 											d3.select(this).style("fill","red");
 										} else {
 											d3.select(this).style("fill","green");
