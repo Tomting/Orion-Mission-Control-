@@ -322,7 +322,7 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 								columns.append(column.sVcolumn)
 								out.add_column(column.sVcolumn, [])
 								out.align[column.sVcolumn] = "l"	# align left
-							recordData.append(column.cVvalue.sVvalue)
+							recordData.append(column.cVvalue.sVvalue[:30])
 						out.add_row(recordData)						
 
 					self.send_response(200)
