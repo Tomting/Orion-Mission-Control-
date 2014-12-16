@@ -89,6 +89,8 @@
 				//console.log("response: " + evt.data + '\n');
 				var json = webix.DataDriver.json.toObject(evt.data);
 				if (json.msgtype == "top") {
+					$$("datatable_sql").clearAll();
+					$$("datatable_sql").parse(json.params);
 					$$("datatable_stats").clearAll();
 					$$("datatable_stats").parse(json.params);
 				}
@@ -227,16 +229,12 @@
 			function removeAllColumns(){
 				var datatable = $$('sql_result');
 				var columns = datatable.config.columns;
-				console.log(columns);
 				datatable.refreshColumns([{header:""}]);
 			} 
 
-			function execute_query(){
-				var text = $$("sql_editor").getValue();
-				webix.ajax().post("/execute_query/", { query:text, format:"json" }, { success:function(text, xml, xhr) {
-					console.log(xhr);
+			function execute_query(text,namespace){
+				webix.ajax().post("/execute_query/", { query:text, namespace:namespace, format:"json" }, { success:function(text, xml, xhr) {
 					var datatable = $$("sql_result");
-					console.log(text);
 					var json = webix.DataDriver.json.toObject(text);
 					datatable.clearAll();
 					removeAllColumns();
@@ -253,10 +251,14 @@
 				}});  
 			}
 
-			function clear_query(){
-				$$("sql_editor").setValue("");
+			function clear_results(){
 				$$("sql_result").clearAll();
 				removeAllColumns();
+			}
+
+			function clear_query(){
+				$$("sql_editor").setValue("");
+				clear_results();
 			}
 
 			function not_yet(){
@@ -267,21 +269,75 @@
         	 	batch:"cfg_sqleditor",
         		id:"vview_sqleditor",
         	 			rows:[
-        	 				{
-        	 					view:"codemirror-editor",
-        	 					id:"sql_editor",
-        	 					mode:"mysql",
-        	 					theme:"night",
-        	 					value:"select from pting",
-        	 					height:100
-        	 				},
+        	 				{ 
+        	 					view:"multiview",
+        	 					id:"editor_multiview",
+        	 					cells:[
+		        	 				{
+		        	 					view:"codemirror-editor",
+		        	 					batch:"sql_editor",
+		        	 					id:"sql_editor",
+		        	 					mode:"mysql",
+		        	 					theme:"night",
+		        	 					value:"select from pting",
+		        	 					height:100
+		        	 				},
+				 					{
+										view:"datatable",
+										batch:"datatable_sql",
+										id:"datatable_sql",
+										resizeColumn:true,
+										resizeRow:false,
+										scroll:true,
+										select:"row",
+										type:"json",
+										height:200,
+										columns:[
+											{ id:"NAME", header:{ text:"", height:1 }, fillspace:1 },
+										],
+										on:{
+											onSelectChange:function(){
+												var row = $$("datatable_sql").getSelectedItem(false);
+												$$("datatable_sql").clearSelection();
+												if (typeof row !== 'undefined') {
+													clear_results();
+													var res = row.NAME.split("/");
+													var query = "select from "+res[1];
+													execute_query(query, res[0]);
+												}
+											}
+										},
+									},
+		        	 			]
+		        	 		},
 			        	 	{ view:"toolbar", 
 			 					elements:[
-								  	{ view:"icon", icon:"play", click:execute_query, width:100 },
-								  	{ view:"icon", icon:"trash-o", click:clear_query, width:100 },
-								  	{ view:"icon", icon:"folder-open", click:not_yet, width:100 },
-								  	{ view:"icon", icon:"save", click:not_yet, width:100 },
-								  	{ view:"icon", icon:"share-square-o", click:not_yet, width:100 },
+								  	{ view:"icon", id:"btn_play", icon:"play", click:'execute_query($$("sql_editor").getValue(),"")', width:100 },
+								  	{ view:"icon", id:"btn_trash", icon:"trash-o", click:clear_query, width:100 },
+								  	{ view:"icon", id:"btn_open", icon:"folder-open", click:not_yet, width:100 },
+								  	{ view:"icon", id:"btn_save", icon:"save", click:not_yet, width:100 },
+								  	{ view:"icon", id:"btn_share", icon:"share-square-o", click:not_yet, width:100 },
+								  	{ view:"spacer" },
+								  	{ view:"segmented", id:"filter_query_mode", options:[ {id:0, value:"Editor"}, {id:1, value:"Tables"}], width:200, on:{ 
+								  		onChange:function(newv, oldv) {
+								  			clear_results();
+											if (newv == 0) {
+												$$("editor_multiview").showBatch("sql_editor");
+												$$("btn_play").show();
+												$$("btn_trash").show();
+												$$("btn_open").show();
+												$$("btn_save").show();
+												$$("btn_share").show();
+											} else {
+												$$("editor_multiview").showBatch("datatable_sql");
+												$$("btn_play").hide();
+												$$("btn_trash").hide();
+												$$("btn_open").hide();
+												$$("btn_save").hide();
+												$$("btn_share").hide();
+											}
+										}
+									} }
 								],
 			        	 	},
 			        	 	{ id:'sql_result', view:"datatable", type:"wide", resizeColumn:true, resizeRow:true, tooltip:true },
@@ -499,6 +555,8 @@
 							/* Circle Layout Formula 
 							(x',y')=(cx+r*cos(α),cy+r*sin(α))
 							Where cx and cy are the center of the circle, r is the radius, and α is the angle of the point, in radians, relative to the center of the circle. */
+
+							if (this.data.children == undefined) return;
 
 							var width = this.$width;
 							var height = this.$height;
@@ -1290,6 +1348,13 @@
 					error:function(text, xml, hxr) {
 						show_error(text);
 				}});  
+
+				// start with light theme
+				loadjscssfile("/skins/light/webix.css","css");
+				loadjscssfile("/skins/light/cloud_graph.css","css");
+				loadjscssfile("/skins/light/network_graph.css","css");
+				loadjscssfile("/js/terminal/terminal/term_light.css","css");
+				$$('sql_editor').setOption("theme","neat");
 
 				// TODO: this is not more needed if websocket works...
 				/*

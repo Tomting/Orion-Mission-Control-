@@ -248,6 +248,11 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 				})
 			fmt = form['format'].value
 
+			if ("namespace" in form):
+				namespace = form['namespace'].value
+			else:
+				namespace = ""
+
 			print "===================="
 			print form['query'].value 
 			print fmt
@@ -284,10 +289,13 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 
 				# Execute the query 
 				args = ThrfOrn_.ThrfL2os()
-				if so.orion_ns is None:
-					args.sVnamespace = "DEFAULT"
+				if (namespace != ""):
+					args.sVnamespace = namespace
 				else:
-					args.sVnamespace = so.orion_ns
+					if so.orion_ns is None:
+						args.sVnamespace = "DEFAULT"
+					else:
+						args.sVnamespace = so.orion_ns
 				args.sVosqlstring = form['query'].value	# TODO: check if it's a dangerous query	
 				args.bVonlysecondary = False
 				args.iVtimestamp = 0 # TODO: Helpers.getTimestamp()
