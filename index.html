@@ -146,8 +146,9 @@
 							//{id:"cfg_console", title:"Console", src:"/js/img/terminal.png" },
 							{id:"cfg_console", title:"Console", src:"fa-terminal" },
 							{id:"cfg_sqleditor", title:"OSQL Editor", src:"fa-edit" },
-							{id:"cfg_nodestats", title:"Statistics", src:"fa-line-chart" },
-							{id:"cfg_network", title:"Network", src:"fa-wifi" },
+							{id:"cfg_nodestats", title:"Node Statistics", src:"fa-line-chart" },
+							{id:"cfg_network", title:"Network Graph", src:"fa-wifi" },
+							{id:"cfg_table_builder", title:"Table Builder", src:"fa-table"},
 						 ],	
 						 on: {
 							onItemClick:function(id) {
@@ -419,7 +420,7 @@
         	};
 
 			/**
-			 * N E T W O R K 
+			 * N E T W O R K   G R A P H
 			 **/
 
 			 function onAddNode(){
@@ -1191,6 +1192,122 @@
 				]
 			}
 
+			/**
+			 * T A B L E   B U I L D E R 
+			 **/
+
+			var last_ui = [];
+
+			function download(filename, xml) {
+			    var pom = document.createElement('a');
+			    pom.setAttribute('href', 'data:text/xml;charset=utf-8,' + encodeURIComponent(xml));
+			    pom.setAttribute('download', filename);
+			    pom.click();
+			}
+
+			function export_xml(){
+				var form = $$("form_preview");
+				var values = form.getValues();
+				values['__table__'] = "ciccio";
+				values['__namespace__'] = "DEFAULT";
+				values['__type__'] = "MEMORY";
+				webix.ajax().post( "/table_builder/", values);
+				/*
+				var XML = document.createElement("export_table");
+				var Node = document.createElement("TABLE");
+				for (var i = 0; i < last_ui.length; i++) {
+					var Column = document.createElement("COLUMN");
+					var ColumnName = document.createElement("NAME");
+					var ColumnType = document.createElement("TYPE");
+
+					var obj = $$(last_ui[i].id);
+
+					ColumnName.appendChild( document.createTextNode(last_ui[i].name) );
+					ColumnType.appendChild( document.createTextNode(obj.getValue()) );
+
+					Column.appendChild ( ColumnName );
+					Column.appendChild ( ColumnType );
+					Node.appendChild( Column );
+				}
+				XML.appendChild(Node);
+				alert(XML.innerHTML);
+				*/
+			}
+
+			function refresh_preview() {
+				var count = last_ui.length
+
+				var ui = last_ui;
+				var elements;
+
+				elements = last_ui.concat({ ignore:1, gravity: 0.001 });
+
+				for (var i=0; i<last_ui.length; i++)
+					delete last_ui[i].id;
+
+				//$$("code_preview").setValue(JSON.stringify({ view:"form", elements:ui }, undefined, 2));
+				
+				for (var i=0; i<last_ui.length; i++)
+					last_ui[i].id = i+1;
+
+				webix.ui([{}], $$("form_preview"));
+				webix.ui(webix.copy(elements), $$("form_preview"));
+			}			 
+
+			function reuse_ui(name) {
+				for (var i = 0; i < last_ui.length; i++) {
+					if (last_ui[i].name == name) {
+						return webix.copy(last_ui[i]);	
+					} 
+				}
+			}
+
+			function generate_table_fields() {
+				var names = $$("fields").getValue();
+				if (names == "") return show_error("Type some field names first");
+				var names = names.split(/[\n\,]/g);
+
+				var elements = [];
+				for (var i = 0; i < names.length; i++) {
+					var nextname = names[i].replace(/[^a-z0-9A-Z]/g,"");
+					if (nextname){
+						var next = reuse_ui(nextname) || { view:"combo", name:nextname, label:nextname, value:"String", options:["String", "Integer", "Double", "Boolean", "List"] };
+						elements.push(next);
+					}
+				}
+
+				last_ui = elements;
+				refresh_preview();
+			}
+
+			var view_table_builder = {
+			 	batch:"cfg_table_builder",
+				cols:[
+					{ 
+						type:"fill", 
+						rows:[
+			        	 	{ view:"toolbar", 
+			 					elements:[
+									{ view:"icon", id:"btn_save_table", icon:"save", click:not_yet, width:100 },			 					
+									{ view:"icon", id:"btn_export_table", icon:"share-square-o", click:export_xml, width:100 },	
+								],
+			        	 	},
+							{ view:"form", id:"form_preview", elements:[]},
+							{ view:"spacer" }
+						]
+					},
+					{ type:"space", width:340, rows:[
+						{ type:"clean", rows:[
+							{ view:"text", labelWidth:120, id:"editor_table_name", label: "Table Name", value:"" },
+							{ view:"text", labelWidth:120, id:"editor_table_namespace", label: "Namespace", value:"DEFAULT" },
+							{ view:"combo", labelWidth:120, id:"columns", label:"Table Type", value:"Memory", options:["Memory", "Volatile", "Persistent"]},
+							{ view:"textarea",  maxHeight:400, id:"fields", placeholder:"Type field names here, comma or new line separated" },
+							{ view:"button", value:"Generate", id:"generate_button", type:"form", click:generate_table_fields }
+						]},
+						{ gravity: 0.001 }
+					]}		
+				]
+			};
 
 			/**
 			 * M A I N 
@@ -1208,6 +1325,7 @@
 					view_sqleditor,
 					view_nodes,
 					view_network,
+					view_table_builder,
 				]
         	};
 

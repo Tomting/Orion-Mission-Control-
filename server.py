@@ -148,6 +148,19 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		self.end_headers()
 		self.wfile.write(msg)
 
+	def _send_as_file(self, returnCode, contentType, msg):
+		import time
+		self.send_response(returnCode)
+		self.send_header("Content-type", contentType)
+		self.send_header('Content-disposition','attachment; filename="test.xml"')
+		self.send_header('Content-length', len(msg))
+		self.send_header('Content-Transfer-Encoding', 'binary')
+		now = datetime.datetime.fromtimestamp(time.mktime(time.gmtime()))
+		self.send_header('Last-Modified', now.strftime("%a, %d %b %Y %H:%M:%S GMT"))
+		self._attach_session_data()
+		self.end_headers()
+		self.wfile.write(msg)
+
 	def _make_network_command(self, host, port, command):
 		args = ThrfOrn_.ThrfComm()
 		args.iVcommand = iEreservedkeyword.NETWORK
@@ -198,6 +211,23 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		address['accrual'] = accrual
 		node['children'].append(address)
 		return address
+
+	'''
+	def _store_int_field():
+		ThrfL2cl column = statement.cVcolumns.get(fieldNumber);
+		column.cVvalue.iVvalue = value;
+		column.cVvalue.iVtype = iEcolumntype.INTEGRTYPE;
+
+	def _store_double_field():
+		ThrfL2cl column = statement.cVcolumns.get(fieldNumber);
+		column.cVvalue.dVvalue = value;
+		column.cVvalue.iVtype = iEcolumntype.DOUBLETYPE;	
+
+	def _store_boolean_field():
+		ThrfL2cl column = statement.cVcolumns.get(fieldNumber);
+		column.cVvalue.bVvalue = value;
+		column.cVvalue.iVtype = iEcolumntype.BOOLN_TYPE;
+	'''
 
 	'''
 	def _sessionid_headers(self):
@@ -749,6 +779,28 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 				out.add_row(["session namespace", "Unknown"])
 
 			self._send_response(200, "text/plain", "\r\n"+out.get_string())
+
+		elif ( self.path == '/table_builder/'):
+			form = self._get_form_data()
+
+			import xml.etree.cElementTree as ET
+			root = ET.Element("TABLE")
+
+			for item in form:
+				if item == '__namespace__':
+					namespace = form['__namespace__'].value
+				elif item == '__table__':
+					table = form['__table__'].value
+				elif item == '__type__':
+					tabletype = form['__type__'].value
+				else:
+					column = ET.SubElement(root, "COLUMN")
+					column_name = ET.SubElement(column, "NAME")
+					column_name.text = item.upper()
+					column_type = ET.SubElement(column, "TYPE")
+					column_type.text = form[item].value.upper()
+			
+			self._send_as_file(200, "text/xml", ET.tostring(root))
 
 		else:
 			super(RequestHandler, self).do_GET()
