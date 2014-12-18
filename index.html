@@ -636,6 +636,7 @@
 							}
 
 							function drawText(svg, p0, p1, degrees, text) {
+								if ((degrees >= 90) && (degrees <= 180)) degrees = degrees * 2;
 								svg.append("text")
 									.attr("class","network_node_text")
 									.attr("text-anchor", "middle")
