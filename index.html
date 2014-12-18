@@ -143,7 +143,6 @@
 					{ type:"header", template:"Menu"},
 					{ view:"list", id:"sidemenu", width:230, select: true, scroll:false, layout:"y",
 						 data:[
-							//{id:"cfg_console", title:"Console", src:"/js/img/terminal.png" },
 							{id:"cfg_console", title:"Console", src:"fa-terminal" },
 							{id:"cfg_sqleditor", title:"OSQL Editor", src:"fa-edit" },
 							{id:"cfg_nodestats", title:"Node Statistics", src:"fa-line-chart" },
@@ -1373,11 +1372,13 @@
 						// start connection with the websocket server
 						doConnect(json.wsserver, json.wsport);
 						*/
+						$$('terminal-container').unlockKeyboard();
 						$$('label_orion_address').setValue("ORION:"+host+":"+port+":"+namespace);
 						show_message(text);
 						$$('ui_change_server').hide();
 					}, 
 					error:function(text, xml, hxr) {
+						$$('terminal-container').unlockKeyboard();
 						show_error(text);
 				}});  
         	}
@@ -1402,7 +1403,7 @@
 								{ margin:5, 
 									cols:[
 										{ view:"button", value:"Change" , type:"form", click:onChangeServer },
-										{ view:"button", value:"Cancel", click:("$$('ui_change_server').hide();") }
+										{ view:"button", value:"Cancel", click:("$$('terminal-container').unlockKeyboard();$$('ui_change_server').hide();") }
 									]
 								}
 							]
@@ -1412,6 +1413,7 @@
 			};
 
         	function form_change_server() {
+				$$('terminal-container').lockKeyboard();
         		$$("ui_change_server").show(); 
 				webix.UIManager.setFocus($$('change_server_element_host'));				
         	}
