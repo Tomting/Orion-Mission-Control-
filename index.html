@@ -1198,20 +1198,17 @@
 
 			var last_ui = [];
 
-			function download(filename, xml) {
-			    var pom = document.createElement('a');
-			    pom.setAttribute('href', 'data:text/xml;charset=utf-8,' + encodeURIComponent(xml));
-			    pom.setAttribute('download', filename);
-			    pom.click();
-			}
-
 			function export_xml(){
 				var form = $$("form_preview");
 				var values = form.getValues();
 				values['__table__'] = "ciccio";
 				values['__namespace__'] = "DEFAULT";
 				values['__type__'] = "MEMORY";
-				webix.ajax().post( "/table_builder/", values);
+				webix.ajax().post( "/table_builder/", values, function(xmlText){
+					alert(xmlText);
+					//window.URL.revokeObjectURL('data:text/xml,'+encodeURIComponent(xmlText), "Test", "width=300,height=300,scrollbars=1,resizable=1");
+				} );
+
 				/*
 				var XML = document.createElement("export_table");
 				var Node = document.createElement("TABLE");
@@ -1244,9 +1241,6 @@
 
 				for (var i=0; i<last_ui.length; i++)
 					delete last_ui[i].id;
-
-				//$$("code_preview").setValue(JSON.stringify({ view:"form", elements:ui }, undefined, 2));
-				
 				for (var i=0; i<last_ui.length; i++)
 					last_ui[i].id = i+1;
 
@@ -1257,6 +1251,10 @@
 			function reuse_ui(name) {
 				for (var i = 0; i < last_ui.length; i++) {
 					if (last_ui[i].name == name) {
+						// retrieve the current type
+						var obj = $$(last_ui[i].id);
+						var value = obj.getPopup().getValue();
+						if (value != "") last_ui[i].value = value;
 						return webix.copy(last_ui[i]);	
 					} 
 				}

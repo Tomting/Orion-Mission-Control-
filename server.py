@@ -151,10 +151,12 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 	def _send_as_file(self, returnCode, contentType, msg):
 		import time
 		self.send_response(returnCode)
-		self.send_header("Content-type", contentType)
-		self.send_header('Content-disposition','attachment; filename="test.xml"')
-		self.send_header('Content-length', len(msg))
+		self.send_header("Content-Type", contentType)
+		self.send_header('Content-Disposition','attachment; filename="test.xml"')
+		self.send_header('Content-Length', len(msg))
+		self.send_header('Access-Control-Allow-Origin','*')
 		self.send_header('Content-Transfer-Encoding', 'binary')
+
 		now = datetime.datetime.fromtimestamp(time.mktime(time.gmtime()))
 		self.send_header('Last-Modified', now.strftime("%a, %d %b %Y %H:%M:%S GMT"))
 		self._attach_session_data()
