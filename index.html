@@ -1198,6 +1198,17 @@
 
 			var last_ui = [];
 
+			function create_table(){
+				var form = $$("form_preview");
+				var values = form.getValues();
+				values['__table__'] = $$('table_builder_name').getValue();
+				values['__namespace__'] = $$('table_builder_namespace').getValue();
+				values['__type__'] = "MEMORY";
+				webix.ajax().post( "/table_builder/save/", values, function(xmlText){
+					alert(xmlText);
+				} );
+			}
+
 			function export_xml(){
 				var form = $$("form_preview");
 				var values = form.getValues();
@@ -1261,6 +1272,18 @@
 			}
 
 			function generate_table_fields() {
+				var table = $$("table_builder_name").getValue();
+				var namespace = $$("table_builder_namespace").getValue();
+
+				if (table.trim() == "") {
+					show_error("Please fill the field Table Name");
+					return;
+				}
+				if (namespace.trim() == "") {
+					show_error("Please fill the field Namespace");
+					return;
+				}
+
 				var names = $$("fields").getValue();
 				if (names == "") return show_error("Type some field names first");
 				var names = names.split(/[\n\,]/g);
@@ -1269,7 +1292,16 @@
 				for (var i = 0; i < names.length; i++) {
 					var nextname = names[i].replace(/[^a-z0-9A-Z]/g,"");
 					if (nextname){
-						var next = reuse_ui(nextname) || { view:"combo", name:nextname, label:nextname, value:"String", options:["String", "Integer", "Double", "Boolean", "List"] };
+						var next = reuse_ui(nextname) || { view:"combo", name:nextname, label:nextname, value:1, 
+							options:[ 
+								{id:1, value:"String"}, 
+								{id:2, value:"Integer"}, 
+								{id:3, value:"Double"},
+								{id:4, value:"Boolean"},
+								{id:5, value:"List Of Strings"},
+								{id:6, value:"List Of Integers"},
+								{id:7, value:"List Of Doubles"},
+							] };
 						elements.push(next);
 					}
 				}
@@ -1286,7 +1318,7 @@
 						rows:[
 			        	 	{ view:"toolbar", 
 			 					elements:[
-									{ view:"icon", id:"btn_save_table", icon:"save", click:not_yet, width:100 },			 					
+									{ view:"icon", id:"btn_save_table", icon:"save", click:create_table, width:100 },			 					
 									{ view:"icon", id:"btn_export_table", icon:"share-square-o", click:export_xml, width:100 },	
 								],
 			        	 	},
@@ -1296,8 +1328,8 @@
 					},
 					{ type:"space", width:340, rows:[
 						{ type:"clean", rows:[
-							{ view:"text", labelWidth:120, id:"editor_table_name", label: "Table Name", value:"" },
-							{ view:"text", labelWidth:120, id:"editor_table_namespace", label: "Namespace", value:"DEFAULT" },
+							{ view:"text", labelWidth:120, id:"table_builder_name", label: "Table Name", value:"" },
+							{ view:"text", labelWidth:120, id:"table_builder_namespace", label: "Namespace", value:"DEFAULT" },
 							{ view:"combo", labelWidth:120, id:"columns", label:"Table Type", value:"Memory", options:["Memory", "Volatile", "Persistent"]},
 							{ view:"textarea",  maxHeight:400, id:"fields", placeholder:"Type field names here, comma or new line separated" },
 							{ view:"button", value:"Generate", id:"generate_button", type:"form", click:generate_table_fields }

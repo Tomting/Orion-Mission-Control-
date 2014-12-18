@@ -91,6 +91,47 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		for morsel in self.cookie.values():
 			self.send_header('Set-Cookie', morsel.output(header='').lstrip())
 
+	def _execute_thrift_service(self, service):
+		try:
+			socket = TSocket.TSocket(self.orion_host, self.orion_port)
+			socket.setTimeout(SOCKET_TIMEOUT_MS);
+			transport = TTransport.TFramedTransport(socket)
+			protocol = TBinaryProtocol.TBinaryProtocol(transport)
+			client = ThrfOrn_.Client(protocol)
+			transport.open()		
+			
+			response = client.thriftbatch(service);
+
+			transport.close()
+			socket.close()
+
+			return [False, response] 
+
+		except Exception as n:
+			print n
+			return [False, n.message]
+
+	def _execute_thrift_statement(self, statement):
+		try:
+			socket = TSocket.TSocket(self.orion_host, self.orion_port)
+			socket.setTimeout(SOCKET_TIMEOUT_MS);
+			transport = TTransport.TFramedTransport(socket)
+			protocol = TBinaryProtocol.TBinaryProtocol(transport)
+			client = ThrfOrn_.Client(protocol)
+			transport.open()		
+			
+			ret = client.statement(statement);
+
+			transport.close()
+			socket.close()
+
+			return [ret] 
+
+		except Exception as n:
+			print n
+			return [False, n.message]
+
+
 	def _execute_thrift_command(self, args): 
 		try:
 			socket = TSocket.TSocket(self.orion_host, self.orion_port)
@@ -162,6 +203,13 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 		self._attach_session_data()
 		self.end_headers()
 		self.wfile.write(msg)
+
+	def _make_column(self, field, fieldtype):
+		cVcolumn = ThrfOrn_.ThrfL2cl()
+		cVcolumn.cVvalue = ThrfOrn_.ThrfL2cv()
+		cVcolumn.cVvalue.iVtype = fieldtype;
+		cVcolumn.sVcolumn = field;
+		return cVcolumn
 
 	def _make_network_command(self, host, port, command):
 		args = ThrfOrn_.ThrfComm()
@@ -246,20 +294,6 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 	'''
 
 	def do_GET(self):
-		'''
-		if (self.path == '/config/'):
-			data = {} 
-			data['SERVER'] = SERVER_ADDRESS
-			data['PORT'] = SERVER_PORT
-			self.send_response(200)
-			self.send_header("Content-type", "text/json")
-			self._attach_session_data()
-			self.end_headers()
-			self.wfile.write(json.dumps(data));
-		else:
-			return super(RequestHandler, self).do_GET()
-			#return self._serve_file();
-		'''
 		return super(RequestHandler, self).do_GET()
 
 	def do_POST(self):
@@ -796,6 +830,7 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 				elif item == '__type__':
 					tabletype = form['__type__'].value
 				else:
+					print item
 					column = ET.SubElement(root, "COLUMN")
 					column_name = ET.SubElement(column, "NAME")
 					column_name.text = item.upper()
@@ -804,8 +839,70 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			
 			self._send_as_file(200, "text/xml", ET.tostring(root))
 
+		elif ( self.path == '/table_builder/save/'):
+			form = self._get_form_data()
+			namespace = "DEFAULT"
+			table = "DEFAULT"
+
+			columns = []
+			for item in form:
+				if item == '__namespace__':
+					namespace = form['__namespace__'].value
+				elif item == '__table__':
+					table = form['__table__'].value
+				elif item == '__type__':
+					tabletype = form['__type__'].value
+				else:
+					field = item.upper()
+					fieldtype = int(form[item].value)
+					if (fieldtype == 1):
+						columns.append(self._make_column(field, ThrfOrn_.iEcolumntype.STRINGTYPE))
+					elif (fieldtype == 2):
+						columns.append(self._make_column(field, ThrfOrn_.iEcolumntype.INTEGRTYPE))
+					elif (fieldtype == 3):
+						columns.append(self._make_column(field, ThrfOrn_.iEcolumntype.DOUBLETYPE))
+					elif (fieldtype == 4):
+						columns.append(self._make_column(field, ThrfOrn_.iEcolumntype.BOOLN_TYPE))
+					elif (fieldtype == 5):
+						columns.append(self._make_column(field, ThrfOrn_.iEcolumntype.LSTRNGTYPE))
+					elif (fieldtype == 6):
+						columns.append(self._make_column(field, ThrfOrn_.iEcolumntype.LINTGRTYPE))
+					elif (fieldtype == 7):
+						columns.append(self._make_column(field, ThrfOrn_.iEcolumntype.LDOUBLTYPE))
+
+			# create a statement
+			statement = ThrfOrn_.ThrfL2st()
+			statement.cVmutable = ThrfOrn_.ThrfLmtb()
+			statement.cVcolumns = columns
+			statement.cVkey = ThrfOrn_.ThrfLkey()
+			statement.cVkey.sVmain = "KEY"
+			statement.cVkey.iVstate = ThrfOrn_.iEstatetype.UPSERT
+			statement.cVmutable.sVtable = table
+			statement.cVmutable.sVnamespace = namespace
+
+			# create a column
+			#cVcolumn = ThrfOrn_.ThrfL2cl()
+			#cVcolumn.cVvalue = ThrfOrn_.ThrfL2cv()
+			#cVcolumn.cVvalue.iVtype = ThrfOrn_.iEcolumntype.STRINGTYPE;
+			#cVcolumn.cVvalue.sVvalue = "VALUE2";
+			#cVcolumn.sVcolumn = "FIELD2";
+
+			# add the column to statement
+			#statement.cVcolumns.append(cVcolumn);  
+
+			# create a service
+			#service = ThrfOrn_.ThrfSrvc()
+			#service.cVstatement = statement;
+			#service.cVstatement.cVmutable.sVnamespace = "NAMESPACE";	
+			#service.cVstatement.cVkey.iVtimestamp = 0;
+			#service.iVservicetype = ThrfOrn_.iEservicetype.STATEMENT;
+
+			ret = self._execute_thrift_statement(statement)
+			self._send_response(200, "text/plain", ret)
+
 		else:
 			super(RequestHandler, self).do_GET()
+
 
 class TopDataElement(object):
    """Arbitrary objects, referenced by topMap"""
