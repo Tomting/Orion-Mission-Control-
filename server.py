@@ -388,7 +388,32 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 								columns.append(column.sVcolumn)
 								out.add_column(column.sVcolumn, [])
 								out.align[column.sVcolumn] = "l"	# align left
-							recordData.append(column.cVvalue.sVvalue[:30])
+							# add record data
+							if column.iVtype == iEcolumntype.STRINGTYPE:
+								recordData.append(column.cVvalue.sVvalue[:30])
+							elif column.iVtype == iEcolumntype.LSTRNGTYPE:
+								tempStr = '['
+								tempStr += ",".join(column.cVvalue.sVlistvalue)
+								tempStr += ']'
+								recordData.append(tempStr) 
+							elif column.iVtype == iEcolumntype.INTEGRTYPE:
+								recordData.append(column.cVvalue.iVvalue) 
+							elif column.iVtype == iEcolumntype.LINTGRTYPE: 
+								tempStr = '['
+								tempStr += ",".join(column.cVvalue.iVlistvalue)
+								tempStr += ']'
+								recordData.append(tempStr) 
+							elif column.iVtype == iEcolumntype.DOUBLETYPE:
+								recordData.append(column.cVvalue.dVvalue)
+							elif column.iVtype == iEcolumntype.LDOUBLTYPE:
+								tempStr = '['
+								tempStr += ",".join(column.cVvalue.dVlistvalue)
+								tempStr += ']'
+								recordData.append(tempStr) 
+							elif column.iVtype == iEcolumntype.BOOLN_TYPE:
+								recordData.append(column.cVvalue.bVvalue)
+							else:
+								recordData[column.sVcolumn] = "Undefined"
 						out.add_row(recordData)						
 
 					self.send_response(200)
