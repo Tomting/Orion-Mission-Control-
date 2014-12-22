@@ -279,7 +279,7 @@
 		        	 					id:"sql_editor",
 		        	 					mode:"mysql",
 		        	 					theme:"night",
-		        	 					value:"select from pting",
+		        	 					value:"select from test",
 		        	 					height:100
 		        	 				},
 				 					{
@@ -1486,8 +1486,8 @@
 				webix.ui(ui_change_server);
 				webix.extend($$("app"), webix.ProgressBar);
 
-				$$("sidemenu").select("cfg_sqleditor");
-				$$("sidemenu").callEvent("onItemClick", ["cfg_sqleditor"]);
+				$$("sidemenu").select("cfg_console");
+				$$("sidemenu").callEvent("onItemClick", ["cfg_console"]);
 
 				webix.ajax().post("/get_config/", { format:"json" }, { 
 					success:function(text, xml, xhr) {
