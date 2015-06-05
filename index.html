@@ -148,6 +148,7 @@
 							{id:"cfg_nodestats", title:"Node Statistics", src:"fa-line-chart" },
 							{id:"cfg_network", title:"Network Graph", src:"fa-wifi" },
 							{id:"cfg_table_builder", title:"Table Builder", src:"fa-table"},
+							{id:"cfg_db_test", title:"Database Test", src:"fa-table"},
 						 ],	
 						 on: {
 							onItemClick:function(id) {
@@ -1339,6 +1340,38 @@
 				]
 			};
 
+			var view_db_test = {
+			 	batch:"cfg_db_test",
+				cols:[
+					{ 
+						type:"fill", 
+						rows:[
+			        	 	{ view:"toolbar", 
+			 					elements:[
+									{ view:"icon", id:"btn_save_test", icon:"save", click:create_table, width:100 },			 					
+									{ view:"icon", id:"btn_export_test", icon:"share-square-o", click:export_xml, width:100 },	
+								],
+			        	 	},
+							{ view:"form", id:"form_test_preview", elements:[]},
+							{ view:"spacer" }
+						]
+					},
+					{ type:"space", width:340, rows:[
+						{ type:"clean", rows:[
+							{ view:"combo", labelWidth:120, id:"test_type", label:"Test Type", value:"Single Node", options:["Single Node", "Multi Node"]},
+							{ view:"text", labelWidth:120, id:"test_node_name", label: "Node Name", value:"" },
+							{ view:"text", labelWidth:120, id:"test_builder_namespace", label: "Namespace", value:"DEFAULT" },
+							{ view:"combo", labelWidth:120, id:"test_columns", label:"Table Type", value:"All", options:["All","Memory", "Volatile", "Persistent"]},
+							{ view:"combo", labelWidth:120, id:"test_data", label:"Data Type", value:"All", options:["All","String", "Integer", "Double"]},
+							{ view:"textarea",  maxHeight:400, id:"test_fields", placeholder:"Type field names here, comma or new line separated" },
+							{ view:"button", value:"Run Test", id:"execute_test", type:"form", click:generate_table_fields }
+						]},
+						{ gravity: 0.001 }
+					]}		
+				]
+			};
+
+
 			/**
 			 * M A I N 
 			 **/
@@ -1356,6 +1389,7 @@
 					view_nodes,
 					view_network,
 					view_table_builder,
+					view_db_test,
 				]
         	};
 
