@@ -131,7 +131,6 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 			print n
 			return [False, n.message]
 
-
 	def _execute_thrift_command(self, args): 
 		try:
 			socket = TSocket.TSocket(self.orion_host, self.orion_port)
@@ -172,7 +171,29 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 
 		except Exception as n:
 			print n
-			return [False, None]		
+			return [False, None]
+
+	def _execute_create_table(self, table):
+		try:
+			socket = TSocket.TSocket(self.orion_host, self.orion_port)
+			socket.setTimeout(SOCKET_TIMEOUT_MS);
+			transport = TTransport.TFramedTransport(socket)
+			protocol = TBinaryProtocol.TBinaryProtocol(transport)
+			client = ThrfOrn_.Client(protocol)
+			transport.open()
+			
+			print ("create table")
+			response = client.create(table);
+
+			transport.close()
+			socket.close()
+
+			return [True, response] 
+
+		except Exception as n:
+			print n
+			return [False, None]
+
 
 	def _get_form_data(self):
 		return cgi.FieldStorage(
@@ -819,7 +840,6 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 				out = "ERROR: %s" % response
 			self._send_response(200, "text/plain", response)	 		
 
-
 		elif ( self.path == '/config/'):
 			form = self._get_form_data()
 			fmt = form['format'].value
@@ -896,33 +916,41 @@ class RequestHandler(SimpleHTTPRequestHandler, cookie.RequestHandler):
 						columns.append(self._make_column(field, ThrfOrn_.iEcolumntype.LDOUBLTYPE))
 
 			# create a statement
-			statement = ThrfOrn_.ThrfL2st()
-			statement.cVmutable = ThrfOrn_.ThrfLmtb()
-			statement.cVcolumns = columns
-			statement.cVkey = ThrfOrn_.ThrfLkey()
-			statement.cVkey.sVmain = "KEY"
-			statement.cVkey.iVstate = ThrfOrn_.iEstatetype.UPSERT
-			statement.cVmutable.sVtable = table
-			statement.cVmutable.sVnamespace = namespace
+			#statement = ThrfOrn_.ThrfL2st()
+			#statement.cVmutable = ThrfOrn_.ThrfLmtb()
+			#statement.cVcolumns = columns
+			#statement.cVkey = ThrfOrn_.ThrfLkey()
+			#statement.cVkey.sVmain = "KEY"
+			#statement.cVkey.iVstate = ThrfOrn_.iEstatetype.UPSERT
+			#statement.cVmutable.sVtable = table
+			#statement.cVmutable.sVnamespace = namespace
 
-			# create a column
-			#cVcolumn = ThrfOrn_.ThrfL2cl()
-			#cVcolumn.cVvalue = ThrfOrn_.ThrfL2cv()
-			#cVcolumn.cVvalue.iVtype = ThrfOrn_.iEcolumntype.STRINGTYPE;
-			#cVcolumn.cVvalue.sVvalue = "VALUE2";
-			#cVcolumn.sVcolumn = "FIELD2";
+			table = ThrfOrn_.ThrfL2ct()
+			table.cVcolumns = columns
+			table.cVmutable = ThrfOrn_.ThrfLmtb()
+			table.cVmutable.sVtable = table
+			table.cVmutable.sVnamespace = namespace
+			table.cVaccessgroups = ThrfOrn_.ThrfL2ag()
 
-			# add the column to statement
-			#statement.cVcolumns.append(cVcolumn);  
+			## create a column
+			##cVcolumn = ThrfOrn_.ThrfL2cl()
+			##cVcolumn.cVvalue = ThrfOrn_.ThrfL2cv()
+			##cVcolumn.cVvalue.iVtype = ThrfOrn_.iEcolumntype.STRINGTYPE;
+			##cVcolumn.cVvalue.sVvalue = "VALUE2";
+			##cVcolumn.sVcolumn = "FIELD2";
 
-			# create a service
-			#service = ThrfOrn_.ThrfSrvc()
-			#service.cVstatement = statement;
-			#service.cVstatement.cVmutable.sVnamespace = "NAMESPACE";	
-			#service.cVstatement.cVkey.iVtimestamp = 0;
-			#service.iVservicetype = ThrfOrn_.iEservicetype.STATEMENT;
+			## add the column to statement
+			##statement.cVcolumns.append(cVcolumn);  
 
-			ret = self._execute_thrift_statement(statement)
+			## create a service
+			##service = ThrfOrn_.ThrfSrvc()
+			##service.cVstatement = statement;
+			##service.cVstatement.cVmutable.sVnamespace = "NAMESPACE";	
+			##service.cVstatement.cVkey.iVtimestamp = 0;
+			##service.iVservicetype = ThrfOrn_.iEservicetype.STATEMENT;
+
+			#ret = self._execute_thrift_statement(statement)
+			ret = self._execute_create_table(table)
 			self._send_response(200, "text/plain", ret)
 
 		else:
